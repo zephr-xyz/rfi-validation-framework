@@ -1,0 +1,9 @@
+numpy>=1.24
+scipy>=1.10
+matplotlib>=3.7
+xarray>=2023.1
+rioxarray>=0.14
+netCDF4>=1.6
+h5py>=3.8
+earthaccess>=0.9
+pyproj>=3.5
