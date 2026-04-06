@@ -242,7 +242,103 @@ def gcov_pixel_to_latlon(data, row, col):
         return float(northing), float(easting)
 
 
-# ── Eigenvalue Decomposition RFI Detection ───────────────────────────────────
+# ── Spatial Crop ─────────────────────────────────────────────────────────────
+
+def crop_gcov_around_target(data, target_lat, target_lon, radius_km=100):
+    """Crop GCOV arrays to a region around target lat/lon.
+
+    Dramatically reduces processing time vs full-frame EVD.
+    Returns a new data dict with cropped arrays + offset indices.
+    """
+    from pyproj import Transformer
+
+    if "x_coordinates" not in data or "y_coordinates" not in data or "HVHV" not in data:
+        return data  # can't crop without coordinates
+
+    x = data["x_coordinates"]
+    y = data["y_coordinates"]
+    hv = data["HVHV"]
+
+    # Convert target to projected coordinates
+    epsg = data.get("projection", {}).get("epsg_code", 32639)
+    try:
+        transformer = Transformer.from_crs("EPSG:4326", f"EPSG:{epsg}", always_xy=True)
+        target_e, target_n = transformer.transform(target_lon, target_lat)
+    except Exception:
+        log.warning("Could not project target — skipping crop")
+        return data
+
+    radius_m = radius_km * 1000
+
+    if x.ndim == 1 and y.ndim == 1:
+        # Find pixel range within radius
+        col_mask = np.abs(x - target_e) < radius_m
+        row_mask = np.abs(y - target_n) < radius_m
+
+        if not col_mask.any() or not row_mask.any():
+            log.warning("Target (%.4f, %.4f) not within GCOV extent — skipping crop",
+                        target_lat, target_lon)
+            return data
+
+        col_min, col_max = np.where(col_mask)[0][[0, -1]]
+        row_min, row_max = np.where(row_mask)[0][[0, -1]]
+
+        cropped = dict(data)
+        cropped["HVHV"] = hv[row_min:row_max + 1, col_min:col_max + 1]
+        cropped["x_coordinates"] = x[col_min:col_max + 1]
+        cropped["y_coordinates"] = y[row_min:row_max + 1]
+        cropped["_crop_offset"] = (row_min, col_min)
+
+        for pol in ("HHHH", "VVVV", "HHVV"):
+            if pol in data:
+                cropped[pol] = data[pol][row_min:row_max + 1, col_min:col_max + 1]
+
+        log.info("  Cropped from %s to %s (%.0f km radius around target)",
+                 hv.shape, cropped["HVHV"].shape, radius_km)
+        return cropped
+    else:
+        log.warning("2D coordinate arrays — crop not implemented, using full frame")
+        return data
+
+
+# ── RFI Detection Methods ────────────────────────────────────────────────────
+
+def azimuth_line_rfi_detection(hv_intensity):
+    """Fast RFI detection via per-azimuth-line power anomaly.
+
+    RFI from a point source appears as bright horizontal streaks in SAR HV-pol
+    because the jammer signal is received across all range bins in an azimuth line.
+    This is much faster than sliding-window EVD.
+
+    Returns:
+        rfi_mask: boolean 2D array
+        line_zscore: 1D array of per-azimuth-line z-scores
+    """
+    # Mean power per azimuth line (across range)
+    line_power = np.nanmean(hv_intensity, axis=1)
+
+    # Robust statistics (median + MAD) to handle outliers
+    median_power = np.nanmedian(line_power)
+    mad = np.nanmedian(np.abs(line_power - median_power))
+    sigma = mad * 1.4826  # MAD to sigma conversion
+
+    if sigma == 0:
+        return np.zeros_like(hv_intensity, dtype=bool), np.zeros_like(line_power)
+
+    line_zscore = (line_power - median_power) / sigma
+    anomalous_lines = line_zscore > INTENSITY_ZSCORE_THRESHOLD
+
+    # Expand line mask to 2D
+    rfi_mask = np.zeros_like(hv_intensity, dtype=bool)
+    rfi_mask[anomalous_lines, :] = True
+
+    n_rfi = anomalous_lines.sum()
+    if n_rfi > 0:
+        log.info("  Azimuth-line detection: %d RFI lines (%.1f%%), max z-score=%.1f",
+                 n_rfi, 100 * n_rfi / len(line_power), np.max(line_zscore))
+
+    return rfi_mask, line_zscore
+
 
 def eigenvalue_rfi_detection(hv_intensity, window_size=WINDOW_SIZE):
     """Detect RFI via λ₁ eigenvalue decomposition on HV-pol intensity.
@@ -404,29 +500,31 @@ def detect_nisar_rfi(data_dir, ground_truth):
     log.info("NISAR files: %d jammer-ON, %d baseline (jammer-OFF)",
              len(jammer_on_files), len(baseline_files))
 
-    # Compute baseline eigenvalue ratio (average across OFF passes)
-    baseline_ev_ratio = None
-    if baseline_files:
-        baseline_ratios = []
-        for filepath in baseline_files:
-            log.info("Loading baseline: %s", filepath.name)
-            try:
-                data = parse_nisar_gcov(filepath)
-                if "HVHV" not in data:
-                    continue
-                hv_db = 10 * np.log10(np.maximum(data["HVHV"], 1e-30))
-                _, ev_ratio = eigenvalue_rfi_detection(hv_db)
-                baseline_ratios.append(ev_ratio)
-            except Exception as e:
-                log.warning("Baseline failed %s: %s", filepath.name, e)
-        if baseline_ratios:
-            # Average baseline (handles shape mismatches by using smallest common shape)
-            min_r = min(b.shape[0] for b in baseline_ratios)
-            min_c = min(b.shape[1] for b in baseline_ratios)
-            baseline_ev_ratio = np.mean(
-                [b[:min_r, :min_c] for b in baseline_ratios], axis=0)
-            log.info("Baseline eigenvalue ratio computed (shape %s, median %.2f)",
-                     baseline_ev_ratio.shape, np.median(baseline_ev_ratio))
+    # Compute baseline HV power profiles (per-azimuth-line mean) from OFF passes
+    baseline_line_powers = []
+    for filepath in baseline_files:
+        log.info("Loading baseline: %s", filepath.name)
+        try:
+            data = parse_nisar_gcov(filepath)
+            if "HVHV" not in data:
+                continue
+            data = crop_gcov_around_target(data, gt_lat, gt_lon, radius_km=SEARCH_RADIUS_KM)
+            hv_db = 10 * np.log10(np.maximum(data["HVHV"], 1e-30))
+            line_power = np.nanmean(hv_db, axis=1)
+            baseline_line_powers.append(line_power)
+            log.info("  Baseline HV line power: median=%.1f dB, std=%.1f dB",
+                     np.nanmedian(line_power), np.nanstd(line_power))
+        except Exception as e:
+            log.warning("Baseline failed %s: %s", filepath.name, e)
+
+    baseline_median = None
+    if baseline_line_powers:
+        # Use shortest common length
+        min_len = min(len(lp) for lp in baseline_line_powers)
+        baseline_median = np.median(
+            [lp[:min_len] for lp in baseline_line_powers], axis=0)
+        log.info("Baseline computed from %d files (median line power: %.1f dB)",
+                 len(baseline_line_powers), np.nanmedian(baseline_median))
 
     # Process jammer-ON files (or all files if no sidecar metadata)
     process_files = jammer_on_files if jammer_on_files else h5_files
@@ -445,37 +543,43 @@ def detect_nisar_rfi(data_dir, ground_truth):
             log.warning("No HV-pol data in %s", filepath.name)
             continue
 
+        # Crop to region around target — reduces 17K×17K to ~2K×2K
+        data = crop_gcov_around_target(data, gt_lat, gt_lon, radius_km=SEARCH_RADIUS_KM)
         hv = data["HVHV"]
         orbit_dir = data.get("orbit_direction", "Unknown")
+        crop_offset = data.get("_crop_offset", (0, 0))
 
-        # Convert to dB for better dynamic range handling
+        # Convert to dB
         hv_db = 10 * np.log10(np.maximum(hv, 1e-30))
 
-        # Method 1: Eigenvalue decomposition
-        log.info("  Running eigenvalue decomposition (shape %s)...", hv.shape)
-        rfi_mask, ev_ratio = eigenvalue_rfi_detection(hv_db)
+        # Method 1 (fast): Azimuth-line power anomaly detection
+        log.info("  Running azimuth-line RFI detection (shape %s)...", hv.shape)
+        rfi_mask, line_zscore = azimuth_line_rfi_detection(hv_db)
 
-        # Baseline subtraction: remove ambient L-band RFI signature
-        if baseline_ev_ratio is not None:
-            min_r = min(ev_ratio.shape[0], baseline_ev_ratio.shape[0])
-            min_c = min(ev_ratio.shape[1], baseline_ev_ratio.shape[1])
-            diff = ev_ratio[:min_r, :min_c] - baseline_ev_ratio[:min_r, :min_c]
-            log.info("  Baseline subtraction: max diff %.2f, mean diff %.2f",
-                     np.max(diff), np.mean(diff))
-            # Re-threshold on the differential
-            rfi_mask_diff = diff > EIGENVALUE_RATIO_THRESHOLD
-            # Use differential mask if it has detections, otherwise use raw
-            if rfi_mask_diff.any():
-                rfi_mask = np.zeros_like(rfi_mask)
-                rfi_mask[:min_r, :min_c] = rfi_mask_diff
+        # Baseline subtraction on line power if available
+        if baseline_median is not None:
+            line_power = np.nanmean(hv_db, axis=1)
+            min_len = min(len(line_power), len(baseline_median))
+            diff = line_power[:min_len] - baseline_median[:min_len]
+            diff_zscore = (diff - np.median(diff)) / max(np.std(diff), 1e-10)
+            n_elevated = (diff_zscore > INTENSITY_ZSCORE_THRESHOLD).sum()
+            log.info("  Baseline diff: %d elevated lines, max diff=%.1f dB",
+                     n_elevated, np.max(diff[:min_len]))
+            # Use baseline-subtracted mask if more detections
+            if n_elevated > 0:
+                rfi_mask_bl = np.zeros_like(hv_db, dtype=bool)
+                rfi_mask_bl[:min_len, :] = (diff_zscore > INTENSITY_ZSCORE_THRESHOLD)[:, np.newaxis]
+                if rfi_mask_bl.sum() > rfi_mask.sum():
+                    rfi_mask = rfi_mask_bl
 
         centroids = find_rfi_streak_centroids(rfi_mask, hv)
 
-        # Method 2: Intensity spike fallback
+        # Method 2: Eigenvalue decomposition on cropped region (now feasible)
         if not centroids:
-            log.info("  No eigenvalue streaks found, trying intensity spikes...")
-            spike_mask, zscore = intensity_spike_detection(hv_db)
-            centroids = find_rfi_streak_centroids(spike_mask, hv)
+            log.info("  No azimuth-line streaks, trying eigenvalue decomposition...")
+            _, ev_ratio = eigenvalue_rfi_detection(hv_db)
+            ev_mask = ev_ratio > EIGENVALUE_RATIO_THRESHOLD
+            centroids = find_rfi_streak_centroids(ev_mask, hv)
 
         log.info("  Found %d RFI streak centroids (orbit: %s)", len(centroids), orbit_dir)
 
