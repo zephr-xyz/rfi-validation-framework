@@ -38,6 +38,50 @@ GROUND_TRUTH = {"lat": 27.3182, "lon": 52.8703}  # Known GPS jammer location
 JAMMER_POWER_W = 10.0   # 10W civilian L1/L2 jammer assumption
 SEARCH_RADIUS_KM = 200  # Search radius around ground truth
 
+# Known jammer-active NISAR passes over the target area
+# Each entry: (granule_id, start_time, track, frame, direction, jammer_on)
+NISAR_KNOWN_PASSES = [
+    {
+        "granule": "NISAR_L2_PR_GCOV_010_157_A_015_2005_DHDH_A_20260108T015200_20260108T015233",
+        "start": "2026-01-08T01:52:00Z",
+        "stop": "2026-01-08T01:52:33Z",
+        "track": 157, "frame": 15,
+        "direction": "Ascending",
+        "jammer_on": True,
+        "collection": "NISAR_L2_GCOV_BETA_V1",
+    },
+    {
+        "granule": "NISAR_L2_PR_GCOV_010_157_A_015_2005_DHDH_A_20260120T015200_20260120T015234",
+        "start": "2026-01-20T01:52:00Z",
+        "stop": "2026-01-20T01:52:34Z",
+        "track": 157, "frame": 15,
+        "direction": "Ascending",
+        "jammer_on": True,
+        "collection": "NISAR_L2_GCOV_BETA_V1",
+    },
+    # Baselines: jammer OFF
+    {
+        "granule": "NISAR_L2_PR_GCOV_010_157_A_015_2005_DHDH_A_20251215T015159_20251215T015232",
+        "start": "2025-12-15T01:51:59Z",
+        "stop": "2025-12-15T01:52:32Z",
+        "track": 157, "frame": 15,
+        "direction": "Ascending",
+        "jammer_on": False,  # BASELINE — jammer OFF
+        "collection": "NISAR_L2_GCOV_BETA_V1",
+    },
+    {
+        "granule": "NISAR_L2_PR_GCOV_010_157_A_015_2005_DHDH_A_20251227T015159_20251227T015233",
+        "start": "2025-12-27T01:51:59Z",
+        "stop": "2025-12-27T01:52:33Z",
+        "track": 157, "frame": 15,
+        "direction": "Ascending",
+        "jammer_on": False,  # BASELINE — jammer OFF
+        "collection": "NISAR_L2_GCOV_BETA_V1",
+    },
+    # Add more passes here as they become available:
+    # Descending passes for triangulation, jammer-off baselines, etc.
+]
+
 OUTPUT_DIR = Path("output")
 CYGNSS_DIR = OUTPUT_DIR / "cygnss"
 NISAR_DIR = OUTPUT_DIR / "nisar"
@@ -101,7 +145,7 @@ def weighted_centroid(lats, lons, weights):
 def download_data(start_date, end_date):
     """Download CYGNSS and NISAR data from PO.DAAC/Earthdata."""
     from cygnss_module import download_cygnss
-    from nisar_module import download_nisar
+    from nisar_module import download_nisar_known_passes, download_nisar
 
     CYGNSS_DIR.mkdir(parents=True, exist_ok=True)
     NISAR_DIR.mkdir(parents=True, exist_ok=True)
@@ -113,11 +157,14 @@ def download_data(start_date, end_date):
     )
     log.info("Downloaded %d CYGNSS files", len(cygnss_files))
 
-    log.info("Downloading NISAR L-band GCOV data...")
-    nisar_files = download_nisar(
-        GROUND_TRUTH["lat"], GROUND_TRUTH["lon"],
-        start_date, end_date, NISAR_DIR,
-    )
+    log.info("Downloading NISAR L-band GCOV data (known jammer-active passes)...")
+    nisar_files = download_nisar_known_passes(NISAR_KNOWN_PASSES, NISAR_DIR)
+    if not nisar_files:
+        log.info("Falling back to spatial search...")
+        nisar_files = download_nisar(
+            GROUND_TRUTH["lat"], GROUND_TRUTH["lon"],
+            start_date, end_date, NISAR_DIR,
+        )
     log.info("Downloaded %d NISAR files", len(nisar_files))
 
     return cygnss_files, nisar_files

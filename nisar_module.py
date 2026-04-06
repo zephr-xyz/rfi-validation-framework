@@ -33,8 +33,56 @@ SEARCH_RADIUS_KM = 200
 
 # ── Data Access ──────────────────────────────────────────────────────────────
 
+def download_nisar_known_passes(known_passes, output_dir):
+    """Download specific NISAR granules by ID from known jammer-active/baseline passes."""
+    import earthaccess
+
+    earthaccess.login()
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    all_files = []
+    for entry in known_passes:
+        granule_id = entry["granule"]
+        collection = entry.get("collection", "NISAR_L2_GCOV_BETA_V1")
+        start = entry["start"]
+        stop = entry["stop"]
+        jammer_status = "ON" if entry.get("jammer_on") else "OFF"
+
+        log.info("Searching for %s (jammer %s)...", granule_id, jammer_status)
+
+        # Search by temporal window + collection (narrow enough to find exact granule)
+        results = earthaccess.search_data(
+            short_name=collection,
+            temporal=(start[:10], stop[:10]),  # date portion
+            granule_ur=granule_id,
+        )
+
+        # Fallback: search by time window if granule_ur doesn't work
+        if not results:
+            results = earthaccess.search_data(
+                short_name=collection,
+                temporal=(start, stop),
+            )
+
+        if results:
+            log.info("  Found %d granule(s), downloading...", len(results))
+            files = earthaccess.download(results, str(output_dir))
+            for f in files:
+                all_files.append(Path(f))
+                # Write sidecar metadata so processing knows jammer state
+                meta_path = Path(f).with_suffix(".meta.json")
+                import json
+                meta_path.write_text(json.dumps(entry, indent=2))
+        else:
+            log.warning("  Granule not found: %s", granule_id)
+
+    log.info("Downloaded %d NISAR files total", len(all_files))
+    return all_files
+
+
 def download_nisar(gt_lat, gt_lon, start_date, end_date, output_dir):
-    """Download NISAR L-band GCOV products via earthaccess."""
+    """Download NISAR L-band GCOV products via earthaccess (spatial search)."""
     import earthaccess
 
     earthaccess.login()
@@ -305,8 +353,31 @@ def intensity_spike_detection(hv_intensity):
 
 # ── Detection Pipeline ───────────────────────────────────────────────────────
 
+def _load_sidecar_meta(filepath):
+    """Load .meta.json sidecar if it exists (written during download)."""
+    import json
+    meta_path = Path(filepath).with_suffix(".meta.json")
+    # Also check by replacing full suffix
+    if not meta_path.exists():
+        meta_path = Path(str(filepath) + ".meta.json")
+    if not meta_path.exists():
+        # Try alongside the h5 file
+        for candidate in filepath.parent.glob("*.meta.json"):
+            # Match by date in filename
+            if filepath.stem[:40] in candidate.stem:
+                meta_path = candidate
+                break
+    if meta_path.exists():
+        return json.loads(meta_path.read_text())
+    return {}
+
+
 def detect_nisar_rfi(data_dir, ground_truth):
     """Run NISAR eigenvalue RFI detection on all files in data_dir.
+
+    Uses sidecar .meta.json to distinguish jammer-ON vs jammer-OFF (baseline)
+    passes. For ON passes, subtracts the baseline eigenvalue ratio to isolate
+    jammer-specific RFI from ambient L-band interference.
 
     Returns list of RFIDetection objects.
     """
@@ -319,10 +390,51 @@ def detect_nisar_rfi(data_dir, ground_truth):
         return []
 
     gt_lat, gt_lon = ground_truth["lat"], ground_truth["lon"]
+
+    # Separate baseline vs jammer-on files
+    baseline_files = []
+    jammer_on_files = []
+    for f in h5_files:
+        meta = _load_sidecar_meta(f)
+        if meta.get("jammer_on") is False:
+            baseline_files.append(f)
+        else:
+            jammer_on_files.append(f)
+
+    log.info("NISAR files: %d jammer-ON, %d baseline (jammer-OFF)",
+             len(jammer_on_files), len(baseline_files))
+
+    # Compute baseline eigenvalue ratio (average across OFF passes)
+    baseline_ev_ratio = None
+    if baseline_files:
+        baseline_ratios = []
+        for filepath in baseline_files:
+            log.info("Loading baseline: %s", filepath.name)
+            try:
+                data = parse_nisar_gcov(filepath)
+                if "HVHV" not in data:
+                    continue
+                hv_db = 10 * np.log10(np.maximum(data["HVHV"], 1e-30))
+                _, ev_ratio = eigenvalue_rfi_detection(hv_db)
+                baseline_ratios.append(ev_ratio)
+            except Exception as e:
+                log.warning("Baseline failed %s: %s", filepath.name, e)
+        if baseline_ratios:
+            # Average baseline (handles shape mismatches by using smallest common shape)
+            min_r = min(b.shape[0] for b in baseline_ratios)
+            min_c = min(b.shape[1] for b in baseline_ratios)
+            baseline_ev_ratio = np.mean(
+                [b[:min_r, :min_c] for b in baseline_ratios], axis=0)
+            log.info("Baseline eigenvalue ratio computed (shape %s, median %.2f)",
+                     baseline_ev_ratio.shape, np.median(baseline_ev_ratio))
+
+    # Process jammer-ON files (or all files if no sidecar metadata)
+    process_files = jammer_on_files if jammer_on_files else h5_files
     all_detections = []
 
-    for filepath in h5_files:
+    for filepath in process_files:
         log.info("Processing NISAR: %s", filepath.name)
+        meta = _load_sidecar_meta(filepath)
         try:
             data = parse_nisar_gcov(filepath)
         except Exception as e:
@@ -342,6 +454,21 @@ def detect_nisar_rfi(data_dir, ground_truth):
         # Method 1: Eigenvalue decomposition
         log.info("  Running eigenvalue decomposition (shape %s)...", hv.shape)
         rfi_mask, ev_ratio = eigenvalue_rfi_detection(hv_db)
+
+        # Baseline subtraction: remove ambient L-band RFI signature
+        if baseline_ev_ratio is not None:
+            min_r = min(ev_ratio.shape[0], baseline_ev_ratio.shape[0])
+            min_c = min(ev_ratio.shape[1], baseline_ev_ratio.shape[1])
+            diff = ev_ratio[:min_r, :min_c] - baseline_ev_ratio[:min_r, :min_c]
+            log.info("  Baseline subtraction: max diff %.2f, mean diff %.2f",
+                     np.max(diff), np.mean(diff))
+            # Re-threshold on the differential
+            rfi_mask_diff = diff > EIGENVALUE_RATIO_THRESHOLD
+            # Use differential mask if it has detections, otherwise use raw
+            if rfi_mask_diff.any():
+                rfi_mask = np.zeros_like(rfi_mask)
+                rfi_mask[:min_r, :min_c] = rfi_mask_diff
+
         centroids = find_rfi_streak_centroids(rfi_mask, hv)
 
         # Method 2: Intensity spike fallback
