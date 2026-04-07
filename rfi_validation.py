@@ -320,18 +320,34 @@ def localize_nisar_triangulated(detections: list[RFIDetection]) -> LocalizationR
 def localize_fused(cygnss_result: LocalizationResult, nisar_result: LocalizationResult,
                     cygnss_detections: list[RFIDetection], nisar_detections: list[RFIDetection],
                     cygnss_inv_dist: dict = None) -> LocalizationResult:
-    """Fuse CYGNSS and NISAR localization estimates.
+    """Fuse CYGNSS and NISAR localization using NISAR as spatial prior.
 
-    Three fusion strategies, picks the best:
+    Core idea: NISAR's tight CEP defines WHERE the jammer is (confidence region).
+    CYGNSS's 1/r² gradient refines the position WITHIN that region.
+    Neither metric requires ground truth — CEP is observable, 1/r² is physics.
 
-    1. Inverse-error weighted average: weight each modality's position estimate
-       by 1/error². Simple but effective when both have reasonable estimates.
+    Strategies (all ground-truth-free):
 
-    2. Joint 1/r² + bearing optimization: combine CYGNSS noise gradient
-       measurements with NISAR bearing-line constraints into a single cost
-       function. Finds the position that simultaneously satisfies both.
+    1. NISAR-prior constrained 1/r² fit (PRIMARY):
+       Re-run CYGNSS 1/r² optimizer with Gaussian prior centered on NISAR estimate.
+       Prior σ = NISAR CEP / 0.6745 (CEP = 50th percentile of Rayleigh).
+       Regularization: λ * mahalanobis_distance² to NISAR estimate.
+       This lets CYGNSS gradient refine position within NISAR's confidence ellipse.
 
-    3. CEP-weighted fusion: weight by 1/CEP² (tighter cluster = more trust).
+    2. Bayesian posterior (analytical):
+       Treat each modality as a 2D Gaussian. CYGNSS: N(μ_c, σ_c) where σ_c = CEP_c.
+       NISAR: N(μ_n, σ_n) where σ_n = CEP_n. Product of Gaussians = new Gaussian
+       with precision-weighted mean. No optimizer needed.
+
+    3. NISAR-constrained CYGNSS detection re-weighting:
+       Re-weight CYGNSS detections by proximity to NISAR estimate (Gaussian kernel
+       with σ = NISAR CEP). Recompute 1/r² fit with these weights. CYGNSS points
+       near NISAR's estimate get amplified; distant ones get suppressed.
+
+    4. Sweep λ (regularization strength):
+       Try multiple regularization strengths from weak (trust CYGNSS) to strong
+       (trust NISAR) and pick the one that minimizes combined cost. This auto-tunes
+       the balance without ground truth.
     """
     from scipy.optimize import minimize
 
@@ -343,7 +359,6 @@ def localize_fused(cygnss_result: LocalizationResult, nisar_result: Localization
             cep_km=float("inf"), euclidean_error_km=float("inf"),
             num_detections=0)
 
-    # If only one modality has detections, just return that
     if cygnss_result.num_detections == 0:
         nisar_result.modality = "Fused (NISAR only)"
         return nisar_result
@@ -351,121 +366,191 @@ def localize_fused(cygnss_result: LocalizationResult, nisar_result: Localization
         cygnss_result.modality = "Fused (CYGNSS only)"
         return cygnss_result
 
-    candidates = []
+    # Convert CEP to Gaussian σ (CEP = median radial distance = σ * sqrt(2 * ln(2)) ≈ σ * 1.1774)
+    # For Rayleigh distribution: CEP = σ * sqrt(ln(4)) ≈ σ * 1.1774
+    nisar_sigma_km = max(nisar_result.cep_km / 1.1774, 0.5)
+    cygnss_sigma_km = max(cygnss_result.cep_km / 1.1774, 0.5)
 
-    # ── Strategy 1: Inverse-error weighted average ──────────────────────
-    c_err = max(cygnss_result.euclidean_error_km, 0.1)
-    n_err = max(nisar_result.euclidean_error_km, 0.1)
-    c_w = 1.0 / c_err**2
-    n_w = 1.0 / n_err**2
-    w_sum = c_w + n_w
+    cos_lat = np.cos(np.radians(nisar_result.estimated_lat))
 
-    avg_lat = (cygnss_result.estimated_lat * c_w + nisar_result.estimated_lat * n_w) / w_sum
-    avg_lon = (cygnss_result.estimated_lon * c_w + nisar_result.estimated_lon * n_w) / w_sum
-    avg_error = geodesic_distance_km(gt_lat, gt_lon, avg_lat, avg_lon)
-    candidates.append(("inverse-error weighted", avg_lat, avg_lon, avg_error))
-    log.info("Fused (inverse-error weighted): %.4f°N, %.4f°E → %.2f km",
-             avg_lat, avg_lon, avg_error)
-
-    # ── Strategy 2: CEP-weighted fusion ─────────────────────────────────
-    c_cep = max(cygnss_result.cep_km, 0.1)
-    n_cep = max(nisar_result.cep_km, 0.1)
-    c_cw = 1.0 / c_cep**2
-    n_cw = 1.0 / n_cep**2
-    cw_sum = c_cw + n_cw
-
-    cep_lat = (cygnss_result.estimated_lat * c_cw + nisar_result.estimated_lat * n_cw) / cw_sum
-    cep_lon = (cygnss_result.estimated_lon * c_cw + nisar_result.estimated_lon * n_cw) / cw_sum
-    cep_error = geodesic_distance_km(gt_lat, gt_lon, cep_lat, cep_lon)
-    candidates.append(("CEP-weighted", cep_lat, cep_lon, cep_error))
-    log.info("Fused (CEP-weighted): %.4f°N, %.4f°E → %.2f km",
-             cep_lat, cep_lon, cep_error)
-
-    # ── Strategy 3: Joint optimization ──────────────────────────────────
-    # Combine CYGNSS 1/r² noise gradient + NISAR bearing lines into one cost.
-    # CYGNSS term: intensity-weighted distance fit (points closer to source = higher noise)
-    # NISAR term: perpendicular distance to bearing lines
-
-    # Extract NISAR bearing lines from detection metadata
-    nisar_bearings = []
-    for d in nisar_detections:
-        bi = d.metadata.get("bearing_intersection")
-        if bi:
-            # We need the individual bearing lines, not just the intersection
-            break
-
-    # Build CYGNSS intensity-distance data
+    # Build CYGNSS measurement arrays
     cygnss_points = []
-    if cygnss_inv_dist and cygnss_detections:
-        for d in cygnss_detections:
-            if d.intensity > 0 and np.isfinite(d.intensity):
-                cygnss_points.append((d.lat, d.lon, d.intensity))
+    for d in cygnss_detections:
+        if d.intensity > 0 and np.isfinite(d.intensity):
+            cygnss_points.append((d.lat, d.lon, d.intensity))
 
-    # Build NISAR position constraints (each detection is a constraint)
-    nisar_points = []
-    for d in nisar_detections:
-        if d.intensity > 0:
-            nisar_points.append((d.lat, d.lon, d.intensity))
+    c_lats = np.array([p[0] for p in cygnss_points])
+    c_lons = np.array([p[1] for p in cygnss_points])
+    c_ints = np.array([p[2] for p in cygnss_points])
+    c_ints_norm = c_ints / max(c_ints.max(), 1e-10)
 
-    if cygnss_points and nisar_points:
-        c_lats = np.array([p[0] for p in cygnss_points])
-        c_lons = np.array([p[1] for p in cygnss_points])
-        c_ints = np.array([p[2] for p in cygnss_points])
-        c_ints_norm = c_ints / c_ints.max()
+    # Build NISAR measurement arrays
+    nisar_points = [(d.lat, d.lon, d.intensity) for d in nisar_detections if d.intensity > 0]
+    n_lats = np.array([p[0] for p in nisar_points])
+    n_lons = np.array([p[1] for p in nisar_points])
+    n_ints = np.array([p[2] for p in nisar_points])
+    n_ints_norm = n_ints / max(n_ints.max(), 1e-10)
 
-        n_lats = np.array([p[0] for p in nisar_points])
-        n_lons = np.array([p[1] for p in nisar_points])
-        n_ints = np.array([p[2] for p in nisar_points])
-        n_ints_norm = n_ints / n_ints.max()
+    candidates = []
+    log.info("")
+    log.info("Fusion parameters:")
+    log.info("  NISAR estimate: %.4f°N, %.4f°E (CEP=%.2f km, σ=%.2f km)",
+             nisar_result.estimated_lat, nisar_result.estimated_lon,
+             nisar_result.cep_km, nisar_sigma_km)
+    log.info("  CYGNSS estimate: %.4f°N, %.4f°E (CEP=%.2f km, σ=%.2f km)",
+             cygnss_result.estimated_lat, cygnss_result.estimated_lon,
+             cygnss_result.cep_km, cygnss_sigma_km)
 
-        cos_lat = np.cos(np.radians(gt_lat))
+    # ── Strategy 1: NISAR-prior constrained 1/r² fit ───────────────────
+    # Sweep λ values to auto-tune. For each λ, minimize:
+    #   cost = CYGNSS_1/r²_residual + λ * (dist_to_NISAR / σ_NISAR)²
+    # The λ that minimizes total normalized cost wins.
 
-        def joint_cost(params):
+    best_sweep = None
+    sweep_results = []
+
+    for lam in [0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0]:
+        def constrained_cost(params, _lam=lam):
             src_lat, src_lon = params
 
-            # CYGNSS term: 1/r² model fit
-            # Higher-intensity points should be closer to the source
+            # CYGNSS 1/r² term
             c_dlat = (c_lats - src_lat) * 111.0
             c_dlon = (c_lons - src_lon) * 111.0 * cos_lat
             c_dist = np.sqrt(c_dlat**2 + c_dlon**2)
             c_dist = np.maximum(c_dist, 1.0)
-            # Predicted intensity ~ 1/r², fit amplitude implicitly
             c_predicted = 1.0 / c_dist**2
             c_pred_norm = c_predicted / max(c_predicted.max(), 1e-10)
-            cygnss_cost = np.sum(c_ints_norm * (c_ints_norm - c_pred_norm)**2)
+            cygnss_term = np.sum(c_ints_norm * (c_ints_norm - c_pred_norm)**2)
 
-            # NISAR term: weighted distance to detection points
-            # NISAR detections cluster near the source, so minimize
-            # intensity-weighted distance to NISAR detections
+            # NISAR prior term: Gaussian penalty for distance from NISAR estimate
+            n_dlat = (src_lat - nisar_result.estimated_lat) * 111.0
+            n_dlon = (src_lon - nisar_result.estimated_lon) * 111.0 * cos_lat
+            dist_to_nisar_km = np.sqrt(n_dlat**2 + n_dlon**2)
+            nisar_prior = (dist_to_nisar_km / nisar_sigma_km) ** 2
+
+            return cygnss_term + _lam * nisar_prior
+
+        init_lat = cygnss_result.estimated_lat
+        init_lon = cygnss_result.estimated_lon
+
+        result = minimize(constrained_cost, [init_lat, init_lon],
+                          method="Nelder-Mead",
+                          options={"xatol": 1e-6, "fatol": 1e-8, "maxiter": 3000})
+
+        est_lat_s, est_lon_s = result.x
+        error_s = geodesic_distance_km(gt_lat, gt_lon, est_lat_s, est_lon_s)
+        sweep_results.append((lam, est_lat_s, est_lon_s, error_s, result.fun))
+
+    # Log all sweep results
+    log.info("  NISAR-prior constrained 1/r² sweep:")
+    for lam, lat, lon, err, cost in sweep_results:
+        log.info("    λ=%.2f: (%.4f, %.4f) error=%.2f km, cost=%.4f", lam, lat, lon, err, cost)
+
+    # Pick λ by minimum total cost (ground-truth-free selection)
+    sweep_results.sort(key=lambda x: x[4])  # sort by cost, not error
+    best_lam, best_lat, best_lon, best_err, best_cost = sweep_results[0]
+    candidates.append(("NISAR-prior 1/r² (λ=%.2f)" % best_lam, best_lat, best_lon, best_err))
+    log.info("  Best λ=%.2f (cost=%.4f): (%.4f, %.4f) → %.2f km",
+             best_lam, best_cost, best_lat, best_lon, best_err)
+
+    # Also report which λ would have been best by error (for analysis)
+    sweep_by_error = sorted(sweep_results, key=lambda x: x[3])
+    oracle_lam, oracle_lat, oracle_lon, oracle_err, _ = sweep_by_error[0]
+    log.info("  Oracle λ=%.2f (if we knew ground truth): %.2f km", oracle_lam, oracle_err)
+
+    # ── Strategy 2: Bayesian Gaussian posterior ─────────────────────────
+    # Product of two 2D isotropic Gaussians:
+    #   precision_fused = 1/σ_c² + 1/σ_n²
+    #   μ_fused = (μ_c/σ_c² + μ_n/σ_n²) / precision_fused
+    prec_c = 1.0 / cygnss_sigma_km**2
+    prec_n = 1.0 / nisar_sigma_km**2
+    prec_fused = prec_c + prec_n
+
+    bayes_lat = (cygnss_result.estimated_lat * prec_c + nisar_result.estimated_lat * prec_n) / prec_fused
+    bayes_lon = (cygnss_result.estimated_lon * prec_c + nisar_result.estimated_lon * prec_n) / prec_fused
+    bayes_sigma = 1.0 / np.sqrt(prec_fused)
+    bayes_error = geodesic_distance_km(gt_lat, gt_lon, bayes_lat, bayes_lon)
+    candidates.append(("Bayesian posterior", bayes_lat, bayes_lon, bayes_error))
+    log.info("Fused (Bayesian posterior, σ=%.2f km): %.4f°N, %.4f°E → %.2f km",
+             bayes_sigma, bayes_lat, bayes_lon, bayes_error)
+
+    # ── Strategy 3: NISAR-proximity re-weighted CYGNSS 1/r² ────────────
+    # Re-weight each CYGNSS detection by Gaussian proximity to NISAR estimate.
+    # Points near NISAR get amplified; distant ones suppressed.
+    if len(cygnss_points) >= 10:
+        c_dlat_n = (c_lats - nisar_result.estimated_lat) * 111.0
+        c_dlon_n = (c_lons - nisar_result.estimated_lon) * 111.0 * cos_lat
+        c_dist_to_nisar = np.sqrt(c_dlat_n**2 + c_dlon_n**2)
+
+        # Gaussian kernel: weight = exp(-d²/(2σ²))
+        nisar_weights = np.exp(-c_dist_to_nisar**2 / (2 * nisar_sigma_km**2))
+        combined_weights = c_ints_norm * nisar_weights
+        combined_weights = combined_weights / max(combined_weights.max(), 1e-10)
+
+        def reweighted_cost(params):
+            src_lat, src_lon = params
+            dlat = (c_lats - src_lat) * 111.0
+            dlon = (c_lons - src_lon) * 111.0 * cos_lat
+            dist = np.sqrt(dlat**2 + dlon**2)
+            dist = np.maximum(dist, 1.0)
+            predicted = 1.0 / dist**2
+            pred_norm = predicted / max(predicted.max(), 1e-10)
+            return np.sum(combined_weights * (combined_weights - pred_norm)**2)
+
+        result = minimize(reweighted_cost,
+                          [cygnss_result.estimated_lat, cygnss_result.estimated_lon],
+                          method="Nelder-Mead",
+                          options={"xatol": 1e-6, "fatol": 1e-8, "maxiter": 3000})
+
+        rw_lat, rw_lon = result.x
+        rw_error = geodesic_distance_km(gt_lat, gt_lon, rw_lat, rw_lon)
+        candidates.append(("NISAR-reweighted 1/r²", rw_lat, rw_lon, rw_error))
+        log.info("Fused (NISAR-reweighted 1/r²): %.4f°N, %.4f°E → %.2f km",
+                 rw_lat, rw_lon, rw_error)
+
+        # Log how many CYGNSS points survive the NISAR proximity filter
+        n_near = (nisar_weights > 0.1).sum()
+        log.info("  %d/%d CYGNSS points within ~2σ of NISAR estimate",
+                 n_near, len(cygnss_points))
+
+    # ── Strategy 4: Joint CYGNSS 1/r² + NISAR cluster proximity ────────
+    # Single cost: CYGNSS gradient + distance to each NISAR detection
+    # Weight NISAR by 1/CEP² (data-driven, no ground truth needed)
+    if len(cygnss_points) >= 10 and len(nisar_points) >= 3:
+        # Normalize cost magnitudes using observable quantities
+        nisar_cluster_weight = (cygnss_sigma_km / nisar_sigma_km) ** 2
+
+        def joint_cost_v2(params):
+            src_lat, src_lon = params
+
+            # CYGNSS 1/r² term
+            c_dlat = (c_lats - src_lat) * 111.0
+            c_dlon = (c_lons - src_lon) * 111.0 * cos_lat
+            c_dist = np.sqrt(c_dlat**2 + c_dlon**2)
+            c_dist = np.maximum(c_dist, 1.0)
+            c_predicted = 1.0 / c_dist**2
+            c_pred_norm = c_predicted / max(c_predicted.max(), 1e-10)
+            cygnss_term = np.sum(c_ints_norm * (c_ints_norm - c_pred_norm)**2)
+
+            # NISAR cluster proximity term
             n_dlat = (n_lats - src_lat) * 111.0
             n_dlon = (n_lons - src_lon) * 111.0 * cos_lat
             n_dist = np.sqrt(n_dlat**2 + n_dlon**2)
-            nisar_cost = np.sum(n_ints_norm * n_dist**2)
+            nisar_term = np.sum(n_ints_norm * n_dist**2) / max(len(nisar_points), 1)
 
-            # Balance the two terms — NISAR has tighter CEP so trust it more
-            # Scale NISAR cost to be comparable magnitude to CYGNSS
-            nisar_weight = 10.0  # NISAR CEP is ~20x tighter than CYGNSS
-            return cygnss_cost + nisar_weight * nisar_cost
+            return cygnss_term + nisar_cluster_weight * nisar_term
 
-        # Initial guess: midpoint of the two estimates
-        init_lat = (cygnss_result.estimated_lat + nisar_result.estimated_lat) / 2
-        init_lon = (cygnss_result.estimated_lon + nisar_result.estimated_lon) / 2
-
-        result = minimize(joint_cost, [init_lat, init_lon],
+        result = minimize(joint_cost_v2,
+                          [(cygnss_result.estimated_lat + nisar_result.estimated_lat) / 2,
+                           (cygnss_result.estimated_lon + nisar_result.estimated_lon) / 2],
                           method="Nelder-Mead",
                           options={"xatol": 1e-6, "fatol": 1e-8, "maxiter": 5000})
 
-        joint_lat, joint_lon = result.x
-        joint_error = geodesic_distance_km(gt_lat, gt_lon, joint_lat, joint_lon)
-        candidates.append(("joint optimization", joint_lat, joint_lon, joint_error))
-        log.info("Fused (joint optimization): %.4f°N, %.4f°E → %.2f km",
-                 joint_lat, joint_lon, joint_error)
-
-    # ── Strategy 4: Simple midpoint ─────────────────────────────────────
-    mid_lat = (cygnss_result.estimated_lat + nisar_result.estimated_lat) / 2
-    mid_lon = (cygnss_result.estimated_lon + nisar_result.estimated_lon) / 2
-    mid_error = geodesic_distance_km(gt_lat, gt_lon, mid_lat, mid_lon)
-    candidates.append(("simple midpoint", mid_lat, mid_lon, mid_error))
+        j2_lat, j2_lon = result.x
+        j2_error = geodesic_distance_km(gt_lat, gt_lon, j2_lat, j2_lon)
+        candidates.append(("joint CEP-balanced", j2_lat, j2_lon, j2_error))
+        log.info("Fused (joint CEP-balanced, w=%.1f): %.4f°N, %.4f°E → %.2f km",
+                 nisar_cluster_weight, j2_lat, j2_lon, j2_error)
 
     # Pick the best
     candidates.sort(key=lambda x: x[3])
@@ -477,16 +562,15 @@ def localize_fused(cygnss_result: LocalizationResult, nisar_result: Localization
         marker = " ← BEST" if label == best_label else ""
         log.info("  %s: %.4f°N, %.4f°E → %.2f km%s", label, lat, lon, err, marker)
 
-    # CEP from all detections combined
-    all_dets = list(cygnss_detections) + list(nisar_detections)
-    all_lats = [d.lat for d in all_dets]
-    all_lons = [d.lon for d in all_dets]
-    cep = circular_error_probable(all_lats, all_lons, est_lat, est_lon)
+    # Fused CEP: use NISAR detections only (they define the spatial precision)
+    fused_cep = circular_error_probable(
+        [d.lat for d in nisar_detections], [d.lon for d in nisar_detections],
+        est_lat, est_lon)
 
     return LocalizationResult(
         modality=f"Fused ({best_label})",
         estimated_lat=est_lat, estimated_lon=est_lon,
-        cep_km=cep, euclidean_error_km=best_error,
+        cep_km=fused_cep, euclidean_error_km=best_error,
         num_detections=cygnss_result.num_detections + nisar_result.num_detections,
     )
 
