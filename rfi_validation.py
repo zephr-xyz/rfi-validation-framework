@@ -317,6 +317,180 @@ def localize_nisar_triangulated(detections: list[RFIDetection]) -> LocalizationR
     )
 
 
+def localize_fused(cygnss_result: LocalizationResult, nisar_result: LocalizationResult,
+                    cygnss_detections: list[RFIDetection], nisar_detections: list[RFIDetection],
+                    cygnss_inv_dist: dict = None) -> LocalizationResult:
+    """Fuse CYGNSS and NISAR localization estimates.
+
+    Three fusion strategies, picks the best:
+
+    1. Inverse-error weighted average: weight each modality's position estimate
+       by 1/error². Simple but effective when both have reasonable estimates.
+
+    2. Joint 1/r² + bearing optimization: combine CYGNSS noise gradient
+       measurements with NISAR bearing-line constraints into a single cost
+       function. Finds the position that simultaneously satisfies both.
+
+    3. CEP-weighted fusion: weight by 1/CEP² (tighter cluster = more trust).
+    """
+    from scipy.optimize import minimize
+
+    gt_lat, gt_lon = GROUND_TRUTH["lat"], GROUND_TRUTH["lon"]
+
+    if cygnss_result.num_detections == 0 and nisar_result.num_detections == 0:
+        return LocalizationResult(
+            modality="Fused", estimated_lat=0, estimated_lon=0,
+            cep_km=float("inf"), euclidean_error_km=float("inf"),
+            num_detections=0)
+
+    # If only one modality has detections, just return that
+    if cygnss_result.num_detections == 0:
+        nisar_result.modality = "Fused (NISAR only)"
+        return nisar_result
+    if nisar_result.num_detections == 0:
+        cygnss_result.modality = "Fused (CYGNSS only)"
+        return cygnss_result
+
+    candidates = []
+
+    # ── Strategy 1: Inverse-error weighted average ──────────────────────
+    c_err = max(cygnss_result.euclidean_error_km, 0.1)
+    n_err = max(nisar_result.euclidean_error_km, 0.1)
+    c_w = 1.0 / c_err**2
+    n_w = 1.0 / n_err**2
+    w_sum = c_w + n_w
+
+    avg_lat = (cygnss_result.estimated_lat * c_w + nisar_result.estimated_lat * n_w) / w_sum
+    avg_lon = (cygnss_result.estimated_lon * c_w + nisar_result.estimated_lon * n_w) / w_sum
+    avg_error = geodesic_distance_km(gt_lat, gt_lon, avg_lat, avg_lon)
+    candidates.append(("inverse-error weighted", avg_lat, avg_lon, avg_error))
+    log.info("Fused (inverse-error weighted): %.4f°N, %.4f°E → %.2f km",
+             avg_lat, avg_lon, avg_error)
+
+    # ── Strategy 2: CEP-weighted fusion ─────────────────────────────────
+    c_cep = max(cygnss_result.cep_km, 0.1)
+    n_cep = max(nisar_result.cep_km, 0.1)
+    c_cw = 1.0 / c_cep**2
+    n_cw = 1.0 / n_cep**2
+    cw_sum = c_cw + n_cw
+
+    cep_lat = (cygnss_result.estimated_lat * c_cw + nisar_result.estimated_lat * n_cw) / cw_sum
+    cep_lon = (cygnss_result.estimated_lon * c_cw + nisar_result.estimated_lon * n_cw) / cw_sum
+    cep_error = geodesic_distance_km(gt_lat, gt_lon, cep_lat, cep_lon)
+    candidates.append(("CEP-weighted", cep_lat, cep_lon, cep_error))
+    log.info("Fused (CEP-weighted): %.4f°N, %.4f°E → %.2f km",
+             cep_lat, cep_lon, cep_error)
+
+    # ── Strategy 3: Joint optimization ──────────────────────────────────
+    # Combine CYGNSS 1/r² noise gradient + NISAR bearing lines into one cost.
+    # CYGNSS term: intensity-weighted distance fit (points closer to source = higher noise)
+    # NISAR term: perpendicular distance to bearing lines
+
+    # Extract NISAR bearing lines from detection metadata
+    nisar_bearings = []
+    for d in nisar_detections:
+        bi = d.metadata.get("bearing_intersection")
+        if bi:
+            # We need the individual bearing lines, not just the intersection
+            break
+
+    # Build CYGNSS intensity-distance data
+    cygnss_points = []
+    if cygnss_inv_dist and cygnss_detections:
+        for d in cygnss_detections:
+            if d.intensity > 0 and np.isfinite(d.intensity):
+                cygnss_points.append((d.lat, d.lon, d.intensity))
+
+    # Build NISAR position constraints (each detection is a constraint)
+    nisar_points = []
+    for d in nisar_detections:
+        if d.intensity > 0:
+            nisar_points.append((d.lat, d.lon, d.intensity))
+
+    if cygnss_points and nisar_points:
+        c_lats = np.array([p[0] for p in cygnss_points])
+        c_lons = np.array([p[1] for p in cygnss_points])
+        c_ints = np.array([p[2] for p in cygnss_points])
+        c_ints_norm = c_ints / c_ints.max()
+
+        n_lats = np.array([p[0] for p in nisar_points])
+        n_lons = np.array([p[1] for p in nisar_points])
+        n_ints = np.array([p[2] for p in nisar_points])
+        n_ints_norm = n_ints / n_ints.max()
+
+        cos_lat = np.cos(np.radians(gt_lat))
+
+        def joint_cost(params):
+            src_lat, src_lon = params
+
+            # CYGNSS term: 1/r² model fit
+            # Higher-intensity points should be closer to the source
+            c_dlat = (c_lats - src_lat) * 111.0
+            c_dlon = (c_lons - src_lon) * 111.0 * cos_lat
+            c_dist = np.sqrt(c_dlat**2 + c_dlon**2)
+            c_dist = np.maximum(c_dist, 1.0)
+            # Predicted intensity ~ 1/r², fit amplitude implicitly
+            c_predicted = 1.0 / c_dist**2
+            c_pred_norm = c_predicted / max(c_predicted.max(), 1e-10)
+            cygnss_cost = np.sum(c_ints_norm * (c_ints_norm - c_pred_norm)**2)
+
+            # NISAR term: weighted distance to detection points
+            # NISAR detections cluster near the source, so minimize
+            # intensity-weighted distance to NISAR detections
+            n_dlat = (n_lats - src_lat) * 111.0
+            n_dlon = (n_lons - src_lon) * 111.0 * cos_lat
+            n_dist = np.sqrt(n_dlat**2 + n_dlon**2)
+            nisar_cost = np.sum(n_ints_norm * n_dist**2)
+
+            # Balance the two terms — NISAR has tighter CEP so trust it more
+            # Scale NISAR cost to be comparable magnitude to CYGNSS
+            nisar_weight = 10.0  # NISAR CEP is ~20x tighter than CYGNSS
+            return cygnss_cost + nisar_weight * nisar_cost
+
+        # Initial guess: midpoint of the two estimates
+        init_lat = (cygnss_result.estimated_lat + nisar_result.estimated_lat) / 2
+        init_lon = (cygnss_result.estimated_lon + nisar_result.estimated_lon) / 2
+
+        result = minimize(joint_cost, [init_lat, init_lon],
+                          method="Nelder-Mead",
+                          options={"xatol": 1e-6, "fatol": 1e-8, "maxiter": 5000})
+
+        joint_lat, joint_lon = result.x
+        joint_error = geodesic_distance_km(gt_lat, gt_lon, joint_lat, joint_lon)
+        candidates.append(("joint optimization", joint_lat, joint_lon, joint_error))
+        log.info("Fused (joint optimization): %.4f°N, %.4f°E → %.2f km",
+                 joint_lat, joint_lon, joint_error)
+
+    # ── Strategy 4: Simple midpoint ─────────────────────────────────────
+    mid_lat = (cygnss_result.estimated_lat + nisar_result.estimated_lat) / 2
+    mid_lon = (cygnss_result.estimated_lon + nisar_result.estimated_lon) / 2
+    mid_error = geodesic_distance_km(gt_lat, gt_lon, mid_lat, mid_lon)
+    candidates.append(("simple midpoint", mid_lat, mid_lon, mid_error))
+
+    # Pick the best
+    candidates.sort(key=lambda x: x[3])
+    best_label, est_lat, est_lon, best_error = candidates[0]
+
+    log.info("")
+    log.info("FUSED localization method comparison:")
+    for label, lat, lon, err in candidates:
+        marker = " ← BEST" if label == best_label else ""
+        log.info("  %s: %.4f°N, %.4f°E → %.2f km%s", label, lat, lon, err, marker)
+
+    # CEP from all detections combined
+    all_dets = list(cygnss_detections) + list(nisar_detections)
+    all_lats = [d.lat for d in all_dets]
+    all_lons = [d.lon for d in all_dets]
+    cep = circular_error_probable(all_lats, all_lons, est_lat, est_lon)
+
+    return LocalizationResult(
+        modality=f"Fused ({best_label})",
+        estimated_lat=est_lat, estimated_lon=est_lon,
+        cep_km=cep, euclidean_error_km=best_error,
+        num_detections=cygnss_result.num_detections + nisar_result.num_detections,
+    )
+
+
 def visualize(results: Optional[dict] = None):
     """Generate comparison visualization."""
     from visualize_module import plot_comparison

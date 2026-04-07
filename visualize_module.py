@@ -42,6 +42,7 @@ def plot_comparison(results, ground_truth, output_dir):
 
     cygnss = results.get("cygnss")
     nisar = results.get("nisar")
+    fused = results.get("fused")
 
     # ── Top-left: Overview map ───────────────────────────────────────────
     ax = axes[0, 0]
@@ -58,7 +59,6 @@ def plot_comparison(results, ground_truth, output_dir):
                 marker="^", color="#1f77b4", markersize=14,
                 markeredgecolor="black", markeredgewidth=1, zorder=9,
                 label=f"CYGNSS ({cygnss.euclidean_error_km:.1f} km)")
-        # CEP circle (approximate — in degrees for simple plotting)
         cep_deg = cygnss.cep_km / 111.0
         circle = Circle((cygnss.estimated_lon, cygnss.estimated_lat),
                          cep_deg, fill=False, edgecolor="#1f77b4",
@@ -77,6 +77,13 @@ def plot_comparison(results, ground_truth, output_dir):
                          linestyle="--", linewidth=1.5, alpha=0.6)
         ax.add_patch(circle)
 
+    # Fused estimate
+    if fused and fused.num_detections > 0:
+        ax.plot(fused.estimated_lon, fused.estimated_lat,
+                marker="D", color="#2ca02c", markersize=14,
+                markeredgecolor="black", markeredgewidth=1.5, zorder=11,
+                label=f"Fused ({fused.euclidean_error_km:.1f} km)")
+
     ax.set_xlabel("Longitude (°E)")
     ax.set_ylabel("Latitude (°N)")
     ax.legend(loc="upper left", fontsize=9)
@@ -85,12 +92,10 @@ def plot_comparison(results, ground_truth, output_dir):
     # Auto-scale to show all points with padding
     all_lons = [gt_lon]
     all_lats = [gt_lat]
-    if cygnss and cygnss.num_detections > 0:
-        all_lons.append(cygnss.estimated_lon)
-        all_lats.append(cygnss.estimated_lat)
-    if nisar and nisar.num_detections > 0:
-        all_lons.append(nisar.estimated_lon)
-        all_lats.append(nisar.estimated_lat)
+    for r in [cygnss, nisar, fused]:
+        if r and r.num_detections > 0:
+            all_lons.append(r.estimated_lon)
+            all_lats.append(r.estimated_lat)
 
     pad = 0.5
     ax.set_xlim(min(all_lons) - pad, max(all_lons) + pad)
@@ -175,6 +180,12 @@ def plot_comparison(results, ground_truth, output_dir):
         cep_values.append(nisar.cep_km)
         colors.append("#d62728")
 
+    if fused and fused.num_detections > 0:
+        modalities.append("Fused\n(CYGNSS+NISAR)")
+        euclidean_errors.append(fused.euclidean_error_km)
+        cep_values.append(fused.cep_km)
+        colors.append("#2ca02c")
+
     if modalities:
         x = np.arange(len(modalities))
         width = 0.35
@@ -205,16 +216,12 @@ def plot_comparison(results, ground_truth, output_dir):
 
     # ── Summary text ─────────────────────────────────────────────────────
     summary_lines = [f"Ground Truth: {gt_lat:.4f}°N, {gt_lon:.4f}°E"]
-    if cygnss:
-        summary_lines.append(
-            f"CYGNSS: {cygnss.num_detections} detections, "
-            f"Error={cygnss.euclidean_error_km:.1f} km, CEP={cygnss.cep_km:.1f} km"
-        )
-    if nisar:
-        summary_lines.append(
-            f"NISAR: {nisar.num_detections} detections, "
-            f"Error={nisar.euclidean_error_km:.1f} km, CEP={nisar.cep_km:.1f} km"
-        )
+    for label, r in [("CYGNSS", cygnss), ("NISAR", nisar), ("Fused", fused)]:
+        if r and r.num_detections > 0:
+            summary_lines.append(
+                f"{label}: {r.num_detections} det, "
+                f"Error={r.euclidean_error_km:.1f} km, CEP={r.cep_km:.1f} km"
+            )
     fig.text(0.5, 0.01, " | ".join(summary_lines),
              ha="center", fontsize=10, style="italic", color="#555")
 
@@ -248,11 +255,16 @@ def _save_text_summary(results, ground_truth, output_dir):
         "",
     ]
 
-    for key in ("cygnss", "nisar"):
+    labels_map = {
+        "cygnss": "CYGNSS (GNSS-R 1/r² Fit)",
+        "nisar": "NISAR (L-band λ₁ EVD)",
+        "fused": "FUSED (CYGNSS + NISAR)",
+    }
+    for key in ("cygnss", "nisar", "fused"):
         r = results.get(key)
         if r is None:
             continue
-        label = "CYGNSS (GNSS-R Kurtosis)" if key == "cygnss" else "NISAR (L-band λ₁ EVD)"
+        label = labels_map.get(key, key)
         lines.append(f"--- {label} ---")
         lines.append(f"  Detections:       {r.num_detections}")
         if r.num_detections > 0:
@@ -263,14 +275,15 @@ def _save_text_summary(results, ground_truth, output_dir):
             lines.append("  No detections — cannot localize")
         lines.append("")
 
-    # Winner
-    cygnss = results.get("cygnss")
-    nisar = results.get("nisar")
-    if cygnss and nisar and cygnss.num_detections > 0 and nisar.num_detections > 0:
-        if cygnss.euclidean_error_km < nisar.euclidean_error_km:
-            lines.append(f"WINNER: CYGNSS by {nisar.euclidean_error_km - cygnss.euclidean_error_km:.1f} km")
-        else:
-            lines.append(f"WINNER: NISAR by {cygnss.euclidean_error_km - nisar.euclidean_error_km:.1f} km")
+    # Winner — compare all modalities
+    all_results = [(k, results.get(k)) for k in ("cygnss", "nisar", "fused")]
+    valid_results = [(k, r) for k, r in all_results if r and r.num_detections > 0]
+    if len(valid_results) >= 2:
+        valid_results.sort(key=lambda x: x[1].euclidean_error_km)
+        winner_key, winner = valid_results[0]
+        runner_key, runner = valid_results[1]
+        lines.append(f"WINNER: {winner_key.upper()} ({winner.euclidean_error_km:.2f} km) "
+                     f"by {runner.euclidean_error_km - winner.euclidean_error_km:.1f} km over {runner_key.upper()}")
 
     lines.append("=" * 60)
     text = "\n".join(lines)

@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 
 from rfi_validation import (
     GROUND_TRUTH, NISAR_KNOWN_PASSES, OUTPUT_DIR,
-    localize, localize_nisar_triangulated,
+    localize, localize_nisar_triangulated, localize_fused,
     geodesic_distance_km, LocalizationResult,
 )
 from dataclasses import asdict
@@ -144,9 +144,20 @@ def main():
     nisar_result = localize_nisar_triangulated(nisar_detections)
     cygnss_baseline_result = localize(cygnss_baseline, "CYGNSS_baseline")
 
+    # Fused localization
+    log.info("")
+    log.info("=" * 60)
+    log.info("FUSED LOCALIZATION (CYGNSS + NISAR)")
+    log.info("=" * 60)
+    fused_result = localize_fused(
+        cygnss_result, nisar_result,
+        cygnss_detections, nisar_detections,
+        cygnss_inv_dist)
+
     for label, r in [("CYGNSS (jammer ON)", cygnss_result),
                      ("CYGNSS (baseline)", cygnss_baseline_result),
-                     ("NISAR", nisar_result)]:
+                     ("NISAR", nisar_result),
+                     ("FUSED", fused_result)]:
         log.info("")
         log.info("--- %s ---", label)
         log.info("  Detections: %d", r.num_detections)
@@ -159,6 +170,7 @@ def main():
     results = {
         "cygnss": asdict(cygnss_result),
         "nisar": asdict(nisar_result),
+        "fused": asdict(fused_result),
         "cygnss_baseline": asdict(cygnss_baseline_result),
         "cygnss_inv_dist_fit": cygnss_inv_dist,
         "ground_truth": GROUND_TRUTH,
@@ -173,7 +185,7 @@ def main():
     # Generate visualization
     log.info("\nGenerating comparison plot...")
     from visualize_module import plot_comparison
-    plot_results = {"cygnss": cygnss_result, "nisar": nisar_result}
+    plot_results = {"cygnss": cygnss_result, "nisar": nisar_result, "fused": fused_result}
     plot_comparison(plot_results, GROUND_TRUTH, OUTPUT_DIR)
 
 
