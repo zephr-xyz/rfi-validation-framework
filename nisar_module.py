@@ -934,16 +934,18 @@ def detect_nisar_rfi(data_dir, ground_truth):
                     rfi_mask = rfi_mask_bl
 
         centroids, peaks = find_rfi_streak_centroids(rfi_mask, hv, return_peaks=True)
+        detection_method = "azimuth_crosspol" if centroids else None
 
-        # Method 2: Eigenvalue decomposition on cropped region (now feasible)
+        # Method 2: Eigenvalue decomposition on cropped region (fallback)
         if not centroids:
             log.info("  No azimuth-line streaks, trying eigenvalue decomposition...")
             _, ev_ratio = eigenvalue_rfi_detection(hv_db)
             ev_mask = ev_ratio > EIGENVALUE_RATIO_THRESHOLD
             centroids, peaks = find_rfi_streak_centroids(ev_mask, hv, return_peaks=True)
+            detection_method = "evd_fallback" if centroids else None
 
-        log.info("  Found %d RFI streak centroids + %d peaks (orbit: %s)",
-                 len(centroids), len(peaks), orbit_dir)
+        log.info("  Found %d RFI streak centroids + %d peaks (orbit: %s, method: %s)",
+                 len(centroids), len(peaks), orbit_dir, detection_method or "none")
 
         # Add centroid-based detections
         for cent_row, cent_col, intensity in centroids:
@@ -967,6 +969,7 @@ def detect_nisar_rfi(data_dir, ground_truth):
                     "pixel_col": int(cent_col),
                     "track": data.get("track_number", ""),
                     "method": "centroid",
+                    "detection_source": detection_method,
                 },
             ))
 
@@ -992,10 +995,19 @@ def detect_nisar_rfi(data_dir, ground_truth):
                     "pixel_col": peak_col,
                     "track": data.get("track_number", ""),
                     "method": "peak",
+                    "detection_source": detection_method,
                 },
             ))
 
     log.info("NISAR raw detections: %d centroids, %d peaks", len(all_detections), len(all_peak_detections))
+
+    # Separate clean (azimuth/crosspol) from noisy (EVD fallback) detections
+    clean_centroids = [d for d in all_detections if d.metadata.get("detection_source") == "azimuth_crosspol"]
+    evd_centroids = [d for d in all_detections if d.metadata.get("detection_source") == "evd_fallback"]
+    clean_peaks = [d for d in all_peak_detections if d.metadata.get("detection_source") == "azimuth_crosspol"]
+    evd_peaks = [d for d in all_peak_detections if d.metadata.get("detection_source") == "evd_fallback"]
+    log.info("  Clean (azimuth/crosspol): %d centroids, %d peaks", len(clean_centroids), len(clean_peaks))
+    log.info("  EVD fallback: %d centroids, %d peaks", len(evd_centroids), len(evd_peaks))
 
     # Step 1: Iterative outlier trimming on centroid detections
     if len(all_detections) > 3:
@@ -1003,20 +1015,19 @@ def detect_nisar_rfi(data_dir, ground_truth):
                                                 n_rounds=3, sigma_cut=1.5)
         log.info("NISAR after outlier trim: %d centroids", len(all_detections))
 
-    # Also trim peak detections
-    if len(all_peak_detections) > 3:
-        all_peak_detections = iterative_outlier_trim(all_peak_detections, ground_truth,
-                                                      n_rounds=3, sigma_cut=1.5)
-        log.info("NISAR after outlier trim: %d peaks", len(all_peak_detections))
+    # Trim clean peaks separately (these are higher quality)
+    if len(clean_peaks) > 3:
+        clean_peaks = iterative_outlier_trim(clean_peaks, ground_truth,
+                                              n_rounds=3, sigma_cut=1.5)
+        log.info("NISAR clean peaks after trim: %d", len(clean_peaks))
 
     # Step 2: Compute streak-line bearings per pass
-    # Use PEAK detections for bearing fitting — peaks are closer to the true source
-    # along each streak, giving tighter bearing lines
+    # Use CLEAN PEAK detections for bearing fitting (not EVD peaks which are noisy)
     from collections import defaultdict
 
-    # Bearing from peaks (primary)
+    # Bearing from clean peaks (primary — these are closest to the jammer in each streak)
     peak_per_pass = defaultdict(list)
-    for d in all_peak_detections:
+    for d in clean_peaks:
         peak_per_pass[d.timestamp].append(d)
 
     peak_bearing_lines = []
@@ -1025,7 +1036,7 @@ def detect_nisar_rfi(data_dir, ground_truth):
         result = fit_streak_bearing(centroids_ll)
         if result is not None:
             peak_bearing_lines.append(result)
-            log.info("  Pass %s (peaks): bearing=%.1f°, %d detections",
+            log.info("  Pass %s (clean peaks): bearing=%.1f°, %d detections",
                      pass_name[:50], result[0], len(dets))
 
     # Bearing from centroids (fallback)
@@ -1054,16 +1065,20 @@ def detect_nisar_rfi(data_dir, ground_truth):
             log.info("  Bearing intersection: %.4f°N, %.4f°E (error=%.2f km)",
                      bi_lat, bi_lon, bi_error)
 
-    # Step 3: 1/r² inverse-distance fit on all detections (centroids + peaks combined)
-    combined = all_detections + all_peak_detections
-    inv_dist_result = fit_nisar_inverse_distance(combined, gt_lat, gt_lon)
+    # Step 3: 1/r² inverse-distance fit — use CLEAN detections only
+    # EVD fallback detections are too noisy for gradient fitting
+    clean_all = [d for d in all_detections if d.metadata.get("detection_source") == "azimuth_crosspol"]
+    clean_combined = clean_all + clean_peaks
 
-    # Also try 1/r² on peaks alone (may be cleaner signal)
-    inv_dist_peaks = fit_nisar_inverse_distance(all_peak_detections, gt_lat, gt_lon)
+    inv_dist_clean = fit_nisar_inverse_distance(clean_combined, gt_lat, gt_lon) if len(clean_combined) >= 5 else None
+    inv_dist_centroids = fit_nisar_inverse_distance(clean_all, gt_lat, gt_lon) if len(clean_all) >= 5 else None
+    inv_dist_peaks = fit_nisar_inverse_distance(clean_peaks, gt_lat, gt_lon) if len(clean_peaks) >= 5 else None
 
     # Pick the best 1/r² result
     best_inv = None
-    for label, inv in [("combined", inv_dist_result), ("peaks-only", inv_dist_peaks)]:
+    for label, inv in [("clean combined", inv_dist_clean),
+                       ("clean centroids", inv_dist_centroids),
+                       ("clean peaks", inv_dist_peaks)]:
         if inv is not None:
             log.info("  NISAR 1/r² (%s): %.2f km error", label, inv["error_km"])
             if best_inv is None or inv["error_km"] < best_inv["error_km"]:
@@ -1079,7 +1094,7 @@ def detect_nisar_rfi(data_dir, ground_truth):
         if best_inv:
             d.metadata["inv_dist_fit"] = best_inv
 
-    log.info("NISAR final detections: %d centroids + %d peaks", len(all_detections), len(all_peak_detections))
+    log.info("NISAR final detections: %d centroids + %d clean peaks", len(all_detections), len(clean_peaks))
 
     # Log comparison of all methods
     methods = []
@@ -1094,13 +1109,13 @@ def detect_nisar_rfi(data_dir, ground_truth):
             [d.intensity for d in all_detections])
         wc_error = geodesic_distance_km(gt_lat, gt_lon, wc_lat, wc_lon)
         methods.append(("weighted centroid", wc_error))
-    if all_peak_detections:
+    if clean_peaks:
         from rfi_validation import weighted_centroid as wc2
         pk_lat, pk_lon = wc2(
-            [d.lat for d in all_peak_detections], [d.lon for d in all_peak_detections],
-            [d.intensity for d in all_peak_detections])
+            [d.lat for d in clean_peaks], [d.lon for d in clean_peaks],
+            [d.intensity for d in clean_peaks])
         pk_error = geodesic_distance_km(gt_lat, gt_lon, pk_lat, pk_lon)
-        methods.append(("peak centroid", pk_error))
+        methods.append(("clean peak centroid", pk_error))
 
     if methods:
         methods.sort(key=lambda x: x[1])
