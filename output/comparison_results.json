@@ -1,0 +1,424 @@
+{
+  "cygnss": {
+    "modality": "CYGNSS",
+    "estimated_lat": 27.076887258687258,
+    "estimated_lon": 53.57365096321277,
+    "cep_km": 89.39885168867544,
+    "euclidean_error_km": 74.6421821759813,
+    "num_detections": 5,
+    "detections": [
+      {
+        "lat": 27.430812612612613,
+        "lon": 53.50404352968927,
+        "intensity": 5.75,
+        "timestamp": "",
+        "modality": "CYGNSS",
+        "orbit_direction": "",
+        "metadata": {
+          "distance_km": 63.92,
+          "snr_drop_db": 16.55,
+          "n_on": 7,
+          "n_bl": 3,
+          "method": "spatial_hole"
+        }
+      },
+      {
+        "lat": 26.75513693693694,
+        "lon": 54.771530589067815,
+        "intensity": 5.23,
+        "timestamp": "",
+        "modality": "CYGNSS",
+        "orbit_direction": "",
+        "metadata": {
+          "distance_km": 198.69,
+          "snr_drop_db": 12.12,
+          "n_on": 5,
+          "n_bl": 3,
+          "method": "spatial_hole"
+        }
+      },
+      {
+        "lat": 27.65603783783784,
+        "lon": 53.25054611781356,
+        "intensity": 4.9,
+        "timestamp": "",
+        "modality": "CYGNSS",
+        "orbit_direction": "",
+        "metadata": {
+          "distance_km": 53.04,
+          "snr_drop_db": 7.74,
+          "n_on": 10,
+          "n_bl": 6,
+          "method": "spatial_hole"
+        }
+      },
+      {
+        "lat": 25.62901081081081,
+        "lon": 52.49005388218644,
+        "intensity": 3.77,
+        "timestamp": "",
+        "modality": "CYGNSS",
+        "orbit_direction": "",
+        "metadata": {
+          "distance_km": 190.96,
+          "snr_drop_db": 12.96,
+          "n_on": 10,
+          "n_bl": 3,
+          "method": "spatial_hole"
+        }
+      },
+      {
+        "lat": 27.881263063063066,
+        "lon": 53.50404352968927,
+        "intensity": 2.82,
+        "timestamp": "",
+        "modality": "CYGNSS",
+        "orbit_direction": "",
+        "metadata": {
+          "distance_km": 88.36,
+          "snr_drop_db": 4.11,
+          "n_on": 6,
+          "n_bl": 5,
+          "method": "spatial_hole"
+        }
+      }
+    ]
+  },
+  "nisar": {
+    "modality": "NISAR",
+    "estimated_lat": 27.363473626312025,
+    "estimated_lon": 52.90818902184844,
+    "cep_km": 6.876869888063548,
+    "euclidean_error_km": 6.262945447496859,
+    "num_detections": 17,
+    "detections": [
+      {
+        "lat": 27.423728475775707,
+        "lon": 52.91772867891888,
+        "intensity": 0.19672992825508118,
+        "timestamp": "NISAR_L2_PR_GCOV_009_157_A_015_2005_DHDH_A_20260108T015200_20260108T015233_X05009_N_F_J_001",
+        "modality": "NISAR",
+        "orbit_direction": "Ascending",
+        "metadata": {
+          "distance_km": 12.6,
+          "pixel_row": 1911,
+          "pixel_col": 2725,
+          "track": 157,
+          "bearing_intersection": {
+            "lat": 27.363473626312025,
+            "lon": 52.90818902184844
+          }
+        }
+      },
+      {
+        "lat": 27.415496804897238,
+        "lon": 52.84557915319437,
+        "intensity": 0.14975088834762573,
+        "timestamp": "NISAR_L2_PR_GCOV_009_157_A_015_2005_DHDH_A_20260108T015200_20260108T015233_X05009_N_F_J_001",
+        "modality": "NISAR",
+        "orbit_direction": "Ascending",
+        "metadata": {
+          "distance_km": 11.06,
+          "pixel_row": 1962,
+          "pixel_col": 2369,
+          "track": 157,
+          "bearing_intersection": {
+            "lat": 27.363473626312025,
+            "lon": 52.90818902184844
+          }
+        }
+      },
+      {
+        "lat": 27.393973206116794,
+        "lon": 52.862411088960144,
+        "intensity": 0.2911054491996765,
+        "timestamp": "NISAR_L2_PR_GCOV_009_157_A_015_2005_DHDH_A_20260108T015200_20260108T015233_X05009_N_F_J_001",
+        "modality": "NISAR",
+        "orbit_direction": "Ascending",
+        "metadata": {
+          "distance_km": 8.43,
+          "pixel_row": 2080,
+          "pixel_col": 2454,
+          "track": 157,
+          "bearing_intersection": {
+            "lat": 27.363473626312025,
+            "lon": 52.90818902184844
+          }
+        }
+      },
+      {
+        "lat": 27.380611797196053,
+        "lon": 52.90283021788554,
+        "intensity": 0.1866430789232254,
+        "timestamp": "NISAR_L2_PR_GCOV_009_157_A_015_2005_DHDH_A_20260108T015200_20260108T015233_X05009_N_F_J_001",
+        "modality": "NISAR",
+        "orbit_direction": "Ascending",
+        "metadata": {
+          "distance_km": 7.63,
+          "pixel_row": 2151,
+          "pixel_col": 2655,
+          "track": 157,
+          "bearing_intersection": {
+            "lat": 27.363473626312025,
+            "lon": 52.90818902184844
+          }
+        }
+      },
+      {
+        "lat": 27.34514891957111,
+        "lon": 52.84178387049779,
+        "intensity": 0.19586995244026184,
+        "timestamp": "NISAR_L2_PR_GCOV_009_157_A_015_2005_DHDH_A_20260108T015200_20260108T015233_X05009_N_F_J_001",
+        "modality": "NISAR",
+        "orbit_direction": "Ascending",
+        "metadata": {
+          "distance_km": 4.11,
+          "pixel_row": 2352,
+          "pixel_col": 2356,
+          "track": 157,
+          "bearing_intersection": {
+            "lat": 27.363473626312025,
+            "lon": 52.90818902184844
+          }
+        }
+      },
+      {
+        "lat": 27.29927486958297,
+        "lon": 53.03863303003739,
+        "intensity": 0.15979941189289093,
+        "timestamp": "NISAR_L2_PR_GCOV_009_157_A_015_2005_DHDH_A_20260108T015200_20260108T015233_X05009_N_F_J_001",
+        "modality": "NISAR",
+        "orbit_direction": "Ascending",
+        "metadata": {
+          "distance_km": 16.79,
+          "pixel_row": 2591,
+          "pixel_col": 3334,
+          "track": 157,
+          "bearing_intersection": {
+            "lat": 27.363473626312025,
+            "lon": 52.90818902184844
+          }
+        }
+      },
+      {
+        "lat": 27.296234383790036,
+        "lon": 52.94806221652056,
+        "intensity": 0.2404705137014389,
+        "timestamp": "NISAR_L2_PR_GCOV_009_157_A_015_2005_DHDH_A_20260108T015200_20260108T015233_X05009_N_F_J_001",
+        "modality": "NISAR",
+        "orbit_direction": "Ascending",
+        "metadata": {
+          "distance_km": 8.07,
+          "pixel_row": 2615,
+          "pixel_col": 2886,
+          "track": 157,
+          "bearing_intersection": {
+            "lat": 27.363473626312025,
+            "lon": 52.90818902184844
+          }
+        }
+      },
+      {
+        "lat": 27.292332436223163,
+        "lon": 53.019515048612945,
+        "intensity": 0.20964479446411133,
+        "timestamp": "NISAR_L2_PR_GCOV_009_157_A_015_2005_DHDH_A_20260108T015200_20260108T015233_X05009_N_F_J_001",
+        "modality": "NISAR",
+        "orbit_direction": "Ascending",
+        "metadata": {
+          "distance_km": 15.05,
+          "pixel_row": 2631,
+          "pixel_col": 3240,
+          "track": 157,
+          "bearing_intersection": {
+            "lat": 27.363473626312025,
+            "lon": 52.90818902184844
+          }
+        }
+      },
+      {
+        "lat": 27.423725692703506,
+        "lon": 52.91793091107461,
+        "intensity": 0.19826440513134003,
+        "timestamp": "NISAR_L2_PR_GCOV_010_157_A_015_2005_DHDH_A_20260120T015200_20260120T015234_X05010_N_F_J_001",
+        "modality": "NISAR",
+        "orbit_direction": "Ascending",
+        "metadata": {
+          "distance_km": 12.61,
+          "pixel_row": 1911,
+          "pixel_col": 2726,
+          "track": 157,
+          "bearing_intersection": {
+            "lat": 27.363473626312025,
+            "lon": 52.90818902184844
+          }
+        }
+      },
+      {
+        "lat": 27.414586435534034,
+        "lon": 52.8461708235025,
+        "intensity": 0.16059379279613495,
+        "timestamp": "NISAR_L2_PR_GCOV_010_157_A_015_2005_DHDH_A_20260120T015200_20260120T015234_X05010_N_F_J_001",
+        "modality": "NISAR",
+        "orbit_direction": "Ascending",
+        "metadata": {
+          "distance_km": 10.94,
+          "pixel_row": 1967,
+          "pixel_col": 2372,
+          "track": 157,
+          "bearing_intersection": {
+            "lat": 27.363473626312025,
+            "lon": 52.90818902184844
+          }
+        }
+      },
+      {
+        "lat": 27.397397770166048,
+        "lon": 52.95509113251779,
+        "intensity": 0.24856209754943848,
+        "timestamp": "NISAR_L2_PR_GCOV_010_157_A_015_2005_DHDH_A_20260120T015200_20260120T015234_X05010_N_F_J_001",
+        "modality": "NISAR",
+        "orbit_direction": "Ascending",
+        "metadata": {
+          "distance_km": 12.14,
+          "pixel_row": 2054,
+          "pixel_col": 2912,
+          "track": 157,
+          "bearing_intersection": {
+            "lat": 27.363473626312025,
+            "lon": 52.90818902184844
+          }
+        }
+      },
+      {
+        "lat": 27.380611797196053,
+        "lon": 52.90283021788554,
+        "intensity": 0.2076917439699173,
+        "timestamp": "NISAR_L2_PR_GCOV_010_157_A_015_2005_DHDH_A_20260120T015200_20260120T015234_X05010_N_F_J_001",
+        "modality": "NISAR",
+        "orbit_direction": "Ascending",
+        "metadata": {
+          "distance_km": 7.63,
+          "pixel_row": 2151,
+          "pixel_col": 2655,
+          "track": 157,
+          "bearing_intersection": {
+            "lat": 27.363473626312025,
+            "lon": 52.90818902184844
+          }
+        }
+      },
+      {
+        "lat": 27.379343958869274,
+        "lon": 52.88986766739398,
+        "intensity": 0.2608274519443512,
+        "timestamp": "NISAR_L2_PR_GCOV_010_157_A_015_2005_DHDH_A_20260120T015200_20260120T015234_X05010_N_F_J_001",
+        "modality": "NISAR",
+        "orbit_direction": "Ascending",
+        "metadata": {
+          "distance_km": 7.05,
+          "pixel_row": 2159,
+          "pixel_col": 2591,
+          "track": 157,
+          "bearing_intersection": {
+            "lat": 27.363473626312025,
+            "lon": 52.90818902184844
+          }
+        }
+      },
+      {
+        "lat": 27.34515958011005,
+        "lon": 52.84097547773429,
+        "intensity": 0.3054310083389282,
+        "timestamp": "NISAR_L2_PR_GCOV_010_157_A_015_2005_DHDH_A_20260120T015200_20260120T015234_X05010_N_F_J_001",
+        "modality": "NISAR",
+        "orbit_direction": "Ascending",
+        "metadata": {
+          "distance_km": 4.16,
+          "pixel_row": 2352,
+          "pixel_col": 2352,
+          "track": 157,
+          "bearing_intersection": {
+            "lat": 27.363473626312025,
+            "lon": 52.90818902184844
+          }
+        }
+      },
+      {
+        "lat": 27.310777946573324,
+        "lon": 52.94063747342266,
+        "intensity": 0.26386749744415283,
+        "timestamp": "NISAR_L2_PR_GCOV_010_157_A_015_2005_DHDH_A_20260120T015200_20260120T015234_X05010_N_F_J_001",
+        "modality": "NISAR",
+        "orbit_direction": "Ascending",
+        "metadata": {
+          "distance_km": 7.01,
+          "pixel_row": 2535,
+          "pixel_col": 2848,
+          "track": 157,
+          "bearing_intersection": {
+            "lat": 27.363473626312025,
+            "lon": 52.90818902184844
+          }
+        }
+      },
+      {
+        "lat": 27.29533490086948,
+        "lon": 52.94784446747508,
+        "intensity": 0.3284496068954468,
+        "timestamp": "NISAR_L2_PR_GCOV_010_157_A_015_2005_DHDH_A_20260120T015200_20260120T015234_X05010_N_F_J_001",
+        "modality": "NISAR",
+        "orbit_direction": "Ascending",
+        "metadata": {
+          "distance_km": 8.08,
+          "pixel_row": 2620,
+          "pixel_col": 2885,
+          "track": 157,
+          "bearing_intersection": {
+            "lat": 27.363473626312025,
+            "lon": 52.90818902184844
+          }
+        }
+      },
+      {
+        "lat": 27.292332436223163,
+        "lon": 53.019515048612945,
+        "intensity": 0.21076111495494843,
+        "timestamp": "NISAR_L2_PR_GCOV_010_157_A_015_2005_DHDH_A_20260120T015200_20260120T015234_X05010_N_F_J_001",
+        "modality": "NISAR",
+        "orbit_direction": "Ascending",
+        "metadata": {
+          "distance_km": 15.05,
+          "pixel_row": 2631,
+          "pixel_col": 3240,
+          "track": 157,
+          "bearing_intersection": {
+            "lat": 27.363473626312025,
+            "lon": 52.90818902184844
+          }
+        }
+      }
+    ]
+  },
+  "cygnss_baseline": {
+    "modality": "CYGNSS_baseline",
+    "estimated_lat": 0,
+    "estimated_lon": 0,
+    "cep_km": Infinity,
+    "euclidean_error_km": Infinity,
+    "num_detections": 0,
+    "detections": []
+  },
+  "ground_truth": {
+    "lat": 27.3182,
+    "lon": 52.8703
+  },
+  "jammer_on_dates": [
+    "2026-01-08",
+    "2026-01-20"
+  ],
+  "baseline_dates": [
+    "2025-12-15",
+    "2025-12-27"
+  ]
+}

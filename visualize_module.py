@@ -244,7 +244,7 @@ def _save_text_summary(results, ground_truth, output_dir):
         "GPS JAMMER LOCALIZATION VALIDATION RESULTS",
         "=" * 60,
         f"Ground Truth:  {gt_lat:.4f}°N, {gt_lon:.4f}°E",
-        f"Assumed Jammer: 10W civilian L1/L2 GPS jammer",
+        f"Assumed Jammer: Civilian GPS jammer (L1/L2, power unknown)",
         "",
     ]
 

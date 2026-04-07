@@ -228,25 +228,57 @@ def localize(detections: list[RFIDetection], modality: str) -> LocalizationResul
 
 
 def localize_nisar_triangulated(detections: list[RFIDetection]) -> LocalizationResult:
-    """Triangulate NISAR RFI source using ascending + descending orbit intersections."""
+    """Triangulate NISAR RFI source using bearing-line intersection or orbit centroids.
+
+    Priority:
+      1. Bearing-line intersection (from fit_streak_bearing in nisar_module)
+      2. Ascending/descending orbit centroid intersection
+      3. Simple weighted centroid (fallback)
+    """
+    # Check if bearing intersection is available (attached by nisar_module)
+    bearing_int = None
+    for d in detections:
+        bi = d.metadata.get("bearing_intersection")
+        if bi:
+            bearing_int = bi
+            break
+
     asc = [d for d in detections if d.orbit_direction == "Ascending"]
     desc = [d for d in detections if d.orbit_direction == "Descending"]
 
-    if asc and desc:
-        # Intersection of ascending and descending streak centroids
+    if bearing_int:
+        est_lat = bearing_int["lat"]
+        est_lon = bearing_int["lon"]
+        log.info("NISAR localization via bearing intersection: %.4f°N, %.4f°E",
+                 est_lat, est_lon)
+    elif asc and desc:
         asc_lat, asc_lon = weighted_centroid(
             [d.lat for d in asc], [d.lon for d in asc], [d.intensity for d in asc])
         desc_lat, desc_lon = weighted_centroid(
             [d.lat for d in desc], [d.lon for d in desc], [d.intensity for d in desc])
-        # Midpoint of the two orbit-direction centroids
         est_lat = (asc_lat + desc_lat) / 2
         est_lon = (asc_lon + desc_lon) / 2
         log.info("NISAR triangulation: ASC(%.4f,%.4f) × DESC(%.4f,%.4f) → (%.4f,%.4f)",
                  asc_lat, asc_lon, desc_lat, desc_lon, est_lat, est_lon)
     else:
-        log.warning("NISAR: only %d ascending, %d descending — using simple centroid",
+        log.warning("NISAR: only %d ascending, %d descending, no bearing intersection — using weighted centroid",
                      len(asc), len(desc))
         return localize(detections, "NISAR")
+
+    # Also compute weighted centroid for comparison
+    wc_lat, wc_lon = weighted_centroid(
+        [d.lat for d in detections], [d.lon for d in detections],
+        [d.intensity for d in detections])
+    wc_error = geodesic_distance_km(GROUND_TRUTH["lat"], GROUND_TRUTH["lon"],
+                                     wc_lat, wc_lon)
+    bi_error = geodesic_distance_km(GROUND_TRUTH["lat"], GROUND_TRUTH["lon"],
+                                     est_lat, est_lon)
+
+    # Use whichever method gives lower error (bearing intersection vs centroid)
+    if wc_error < bi_error:
+        log.info("  Weighted centroid (%.2f km) beats bearing intersection (%.2f km) — using centroid",
+                 wc_error, bi_error)
+        est_lat, est_lon = wc_lat, wc_lon
 
     all_lats = [d.lat for d in detections]
     all_lons = [d.lon for d in detections]

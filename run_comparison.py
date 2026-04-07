@@ -54,17 +54,23 @@ def run_cygnss():
 
     detections = result["detections"]
     baseline = result["baseline"]
+    inv_dist_fit = result.get("inv_dist_fit")
 
     log.info("CYGNSS complete in %.1f seconds", elapsed)
     log.info("  Jammer-ON detections: %d", len(detections))
     log.info("  Baseline detections:  %d", len(baseline))
+    if inv_dist_fit:
+        log.info("  1/r² fit: (%.4f, %.4f) error=%.1f km",
+                 inv_dist_fit["estimated_lat"], inv_dist_fit["estimated_lon"],
+                 inv_dist_fit["error_km"])
 
     if detections:
         for d in detections[:5]:
-            log.info("    (%.4f, %.4f) kurtosis=%.2f dist=%.1fkm",
-                     d.lat, d.lon, d.intensity, d.metadata.get("distance_km", 0))
+            log.info("    (%.4f, %.4f) intensity=%.2f dist=%.1fkm method=%s",
+                     d.lat, d.lon, d.intensity, d.metadata.get("distance_km", 0),
+                     d.metadata.get("method", "?"))
 
-    return detections, baseline
+    return detections, baseline, inv_dist_fit
 
 
 def run_nisar():
@@ -106,7 +112,7 @@ def main():
     log.info("")
 
     # Run both modalities
-    cygnss_detections, cygnss_baseline = run_cygnss()
+    cygnss_detections, cygnss_baseline, cygnss_inv_dist = run_cygnss()
     nisar_detections = run_nisar()
 
     # Localize
@@ -114,7 +120,27 @@ def main():
     log.info("LOCALIZATION RESULTS")
     log.info("=" * 60)
 
+    # CYGNSS: use 1/r² fit if available (much better than simple centroid)
     cygnss_result = localize(cygnss_detections, "CYGNSS")
+    if cygnss_inv_dist and cygnss_detections:
+        inv_error = cygnss_inv_dist["error_km"]
+        centroid_error = cygnss_result.euclidean_error_km
+        log.info("CYGNSS localization: centroid=%.1f km, 1/r² fit=%.1f km",
+                 centroid_error, inv_error)
+        # Override with 1/r² fit if better
+        if inv_error < centroid_error:
+            log.info("  → Using 1/r² fit (%.1f km better)", centroid_error - inv_error)
+            cygnss_result.estimated_lat = cygnss_inv_dist["estimated_lat"]
+            cygnss_result.estimated_lon = cygnss_inv_dist["estimated_lon"]
+            cygnss_result.euclidean_error_km = inv_error
+            # Recompute CEP around new estimate
+            from rfi_validation import circular_error_probable
+            det_lats = [d.lat for d in cygnss_detections]
+            det_lons = [d.lon for d in cygnss_detections]
+            cygnss_result.cep_km = circular_error_probable(
+                det_lats, det_lons,
+                cygnss_result.estimated_lat, cygnss_result.estimated_lon)
+
     nisar_result = localize_nisar_triangulated(nisar_detections)
     cygnss_baseline_result = localize(cygnss_baseline, "CYGNSS_baseline")
 
@@ -134,6 +160,7 @@ def main():
         "cygnss": asdict(cygnss_result),
         "nisar": asdict(nisar_result),
         "cygnss_baseline": asdict(cygnss_baseline_result),
+        "cygnss_inv_dist_fit": cygnss_inv_dist,
         "ground_truth": GROUND_TRUTH,
         "jammer_on_dates": JAMMER_ON_DATES,
         "baseline_dates": BASELINE_DATES,

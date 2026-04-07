@@ -1,0 +1,17 @@
+============================================================
+GPS JAMMER LOCALIZATION VALIDATION RESULTS
+============================================================
+Ground Truth:  27.3182°N, 52.8703°E
+Assumed Jammer: Civilian GPS jammer (L1/L2, power unknown)
+
+--- CYGNSS (GNSS-R Kurtosis) ---
+  Detections:       0
+  No detections — cannot localize
+
+--- NISAR (L-band λ₁ EVD) ---
+  Detections:       69
+  Estimated Pos:    27.3926°N, 52.8704°E
+  Euclidean Error:  8.24 km
+  CEP (50%):        32.21 km
+
+============================================================
