@@ -1065,19 +1065,18 @@ def detect_nisar_rfi(data_dir, ground_truth):
             log.info("  Bearing intersection: %.4f°N, %.4f°E (error=%.2f km)",
                      bi_lat, bi_lon, bi_error)
 
-    # Step 3: 1/r² inverse-distance fit — use CLEAN detections only
-    # EVD fallback detections are too noisy for gradient fitting
-    clean_all = [d for d in all_detections if d.metadata.get("detection_source") == "azimuth_crosspol"]
-    clean_combined = clean_all + clean_peaks
+    # Step 3: 1/r² inverse-distance fit
+    # Use the TRIMMED centroid detections (outliers already removed — these are the
+    # best-quality detections regardless of detection source). The trimming already
+    # removed the noisy EVD false positives.
+    inv_dist_trimmed = fit_nisar_inverse_distance(all_detections, gt_lat, gt_lon)
 
-    inv_dist_clean = fit_nisar_inverse_distance(clean_combined, gt_lat, gt_lon) if len(clean_combined) >= 5 else None
-    inv_dist_centroids = fit_nisar_inverse_distance(clean_all, gt_lat, gt_lon) if len(clean_all) >= 5 else None
+    # Also try on clean peaks if available
     inv_dist_peaks = fit_nisar_inverse_distance(clean_peaks, gt_lat, gt_lon) if len(clean_peaks) >= 5 else None
 
     # Pick the best 1/r² result
     best_inv = None
-    for label, inv in [("clean combined", inv_dist_clean),
-                       ("clean centroids", inv_dist_centroids),
+    for label, inv in [("trimmed centroids", inv_dist_trimmed),
                        ("clean peaks", inv_dist_peaks)]:
         if inv is not None:
             log.info("  NISAR 1/r² (%s): %.2f km error", label, inv["error_km"])
