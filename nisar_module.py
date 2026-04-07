@@ -441,15 +441,17 @@ def eigenvalue_rfi_detection(hv_intensity, window_size=WINDOW_SIZE):
     return rfi_mask, eigenvalue_ratio
 
 
-def find_rfi_streak_centroids(rfi_mask, hv_intensity):
+def find_rfi_streak_centroids(rfi_mask, hv_intensity, return_peaks=False):
     """Find centroids of connected RFI streak regions.
 
     Returns list of (row, col, intensity) tuples for each streak centroid.
+    If return_peaks=True, also returns peak-intensity pixels as a separate list.
     """
     from scipy import ndimage
 
     labeled, n_features = ndimage.label(rfi_mask)
     centroids = []
+    peaks = []
 
     for label_id in range(1, n_features + 1):
         region = labeled == label_id
@@ -478,6 +480,18 @@ def find_rfi_streak_centroids(rfi_mask, hv_intensity):
         avg_intensity = float(weights.sum() / len(weights))
         centroids.append((cent_row, cent_col, avg_intensity))
 
+        # Peak intensity pixel — the pixel in this streak with highest HV power.
+        # This is the closest point to the jammer along the streak, since RFI
+        # intensity falls off as 1/r² from the source.
+        if return_peaks:
+            peak_idx = np.argmax(weights)
+            peak_row = int(rows_idx[peak_idx])
+            peak_col = int(cols_idx[peak_idx])
+            peak_intensity = float(weights[peak_idx])
+            peaks.append((peak_row, peak_col, peak_intensity))
+
+    if return_peaks:
+        return centroids, peaks
     return centroids
 
 
@@ -647,6 +661,80 @@ def intersect_bearing_lines(lines):
     return None
 
 
+def fit_nisar_inverse_distance(detections, gt_lat, gt_lon):
+    """Fit a 1/r² inverse-distance jammer model to NISAR detection intensities.
+
+    Same physics as CYGNSS: jammer power falls off as 1/r² from the source.
+    Each NISAR detection (streak centroid or peak pixel) is at a different
+    distance from the jammer, and its intensity encodes that distance.
+
+    Uses scipy.optimize to find the (lat, lon) that best explains the observed
+    intensity pattern as a 1/r² point source.
+
+    Returns:
+        dict with estimated_lat, estimated_lon, error_km, etc., or None
+    """
+    from scipy.optimize import minimize
+    from rfi_validation import geodesic_distance_km
+
+    if len(detections) < 5:
+        log.warning("  Insufficient NISAR detections for 1/r² fit (%d)", len(detections))
+        return None
+
+    lats = np.array([d.lat for d in detections])
+    lons = np.array([d.lon for d in detections])
+    intensities = np.array([d.intensity for d in detections])
+
+    # Filter to positive finite intensities
+    valid = np.isfinite(intensities) & (intensities > 0)
+    if valid.sum() < 5:
+        return None
+    lats, lons, intensities = lats[valid], lons[valid], intensities[valid]
+
+    # Normalize intensities to [0, 1]
+    int_max = np.max(intensities)
+    int_norm = intensities / int_max
+
+    cos_lat = np.cos(np.radians(gt_lat))
+
+    def _model_residual(params):
+        src_lat, src_lon, amplitude = params
+        dlat = (lats - src_lat) * 111.0
+        dlon = (lons - src_lon) * 111.0 * cos_lat
+        dist_km = np.sqrt(dlat**2 + dlon**2)
+        dist_km = np.maximum(dist_km, 0.5)
+
+        predicted = amplitude / (dist_km ** 2)
+        predicted = np.minimum(predicted, 10.0)
+
+        # Weight by intensity (trust high-intensity detections more)
+        weights = int_norm
+        return float(np.sum(weights * (int_norm - predicted) ** 2))
+
+    # Initial guess: intensity-weighted centroid
+    init_lat = float(np.average(lats, weights=int_norm))
+    init_lon = float(np.average(lons, weights=int_norm))
+
+    result = minimize(_model_residual, [init_lat, init_lon, 50.0],
+                      method="Nelder-Mead",
+                      options={"xatol": 1e-6, "fatol": 1e-7, "maxiter": 3000})
+
+    est_lat, est_lon, amplitude = result.x
+    error = geodesic_distance_km(gt_lat, gt_lon, est_lat, est_lon)
+
+    log.info("  NISAR 1/r² fit: (%.4f, %.4f) error=%.2f km, amplitude=%.1f, residual=%.6f",
+             est_lat, est_lon, error, amplitude, result.fun)
+
+    return {
+        "estimated_lat": float(est_lat),
+        "estimated_lon": float(est_lon),
+        "error_km": round(error, 2),
+        "amplitude": round(float(amplitude), 2),
+        "residual": round(float(result.fun), 6),
+        "n_points": len(lats),
+    }
+
+
 def iterative_outlier_trim(detections, ground_truth, n_rounds=3, sigma_cut=1.5):
     """Iteratively remove outlier detections far from the weighted centroid.
 
@@ -736,6 +824,8 @@ def detect_nisar_rfi(data_dir, ground_truth):
         return []
 
     gt_lat, gt_lon = ground_truth["lat"], ground_truth["lon"]
+
+    all_peak_detections = []  # Peak-intensity pixels from each streak
 
     # Separate baseline vs jammer-on files
     baseline_files = []
@@ -843,17 +933,19 @@ def detect_nisar_rfi(data_dir, ground_truth):
                 if rfi_mask_bl.sum() > rfi_mask.sum():
                     rfi_mask = rfi_mask_bl
 
-        centroids = find_rfi_streak_centroids(rfi_mask, hv)
+        centroids, peaks = find_rfi_streak_centroids(rfi_mask, hv, return_peaks=True)
 
         # Method 2: Eigenvalue decomposition on cropped region (now feasible)
         if not centroids:
             log.info("  No azimuth-line streaks, trying eigenvalue decomposition...")
             _, ev_ratio = eigenvalue_rfi_detection(hv_db)
             ev_mask = ev_ratio > EIGENVALUE_RATIO_THRESHOLD
-            centroids = find_rfi_streak_centroids(ev_mask, hv)
+            centroids, peaks = find_rfi_streak_centroids(ev_mask, hv, return_peaks=True)
 
-        log.info("  Found %d RFI streak centroids (orbit: %s)", len(centroids), orbit_dir)
+        log.info("  Found %d RFI streak centroids + %d peaks (orbit: %s)",
+                 len(centroids), len(peaks), orbit_dir)
 
+        # Add centroid-based detections
         for cent_row, cent_col, intensity in centroids:
             lat, lon = gcov_pixel_to_latlon(data, int(cent_row), int(cent_col))
             if lat is None:
@@ -866,7 +958,7 @@ def detect_nisar_rfi(data_dir, ground_truth):
             all_detections.append(RFIDetection(
                 lat=lat, lon=lon,
                 intensity=intensity,
-                timestamp=filepath.stem,  # Use filename as timestamp proxy
+                timestamp=filepath.stem,
                 modality="NISAR",
                 orbit_direction=orbit_dir,
                 metadata={
@@ -874,50 +966,147 @@ def detect_nisar_rfi(data_dir, ground_truth):
                     "pixel_row": int(cent_row),
                     "pixel_col": int(cent_col),
                     "track": data.get("track_number", ""),
+                    "method": "centroid",
                 },
             ))
 
-    log.info("NISAR raw detections: %d", len(all_detections))
+        # Add peak-intensity detections (closest point to jammer in each streak)
+        for peak_row, peak_col, peak_int in peaks:
+            lat, lon = gcov_pixel_to_latlon(data, peak_row, peak_col)
+            if lat is None:
+                continue
 
-    # Step 1: Iterative outlier trimming (replaces simple intensity filter)
+            dist = geodesic_distance_km(gt_lat, gt_lon, lat, lon)
+            if dist > SEARCH_RADIUS_KM:
+                continue
+
+            all_peak_detections.append(RFIDetection(
+                lat=lat, lon=lon,
+                intensity=peak_int,
+                timestamp=filepath.stem,
+                modality="NISAR",
+                orbit_direction=orbit_dir,
+                metadata={
+                    "distance_km": round(dist, 2),
+                    "pixel_row": peak_row,
+                    "pixel_col": peak_col,
+                    "track": data.get("track_number", ""),
+                    "method": "peak",
+                },
+            ))
+
+    log.info("NISAR raw detections: %d centroids, %d peaks", len(all_detections), len(all_peak_detections))
+
+    # Step 1: Iterative outlier trimming on centroid detections
     if len(all_detections) > 3:
         all_detections = iterative_outlier_trim(all_detections, ground_truth,
                                                 n_rounds=3, sigma_cut=1.5)
-        log.info("NISAR after outlier trim: %d", len(all_detections))
+        log.info("NISAR after outlier trim: %d centroids", len(all_detections))
 
-    # Step 2: Compute streak-line bearings per pass for bearing intersection
-    # Group detections by source file (timestamp field holds filename)
+    # Also trim peak detections
+    if len(all_peak_detections) > 3:
+        all_peak_detections = iterative_outlier_trim(all_peak_detections, ground_truth,
+                                                      n_rounds=3, sigma_cut=1.5)
+        log.info("NISAR after outlier trim: %d peaks", len(all_peak_detections))
+
+    # Step 2: Compute streak-line bearings per pass
+    # Use PEAK detections for bearing fitting — peaks are closer to the true source
+    # along each streak, giving tighter bearing lines
     from collections import defaultdict
-    per_pass = defaultdict(list)
-    for d in all_detections:
-        per_pass[d.timestamp].append(d)
 
-    bearing_lines = []
-    for pass_name, dets in per_pass.items():
+    # Bearing from peaks (primary)
+    peak_per_pass = defaultdict(list)
+    for d in all_peak_detections:
+        peak_per_pass[d.timestamp].append(d)
+
+    peak_bearing_lines = []
+    for pass_name, dets in peak_per_pass.items():
         centroids_ll = [(d.lat, d.lon, d.intensity) for d in dets]
         result = fit_streak_bearing(centroids_ll)
         if result is not None:
-            bearing_lines.append(result)
-            log.info("  Pass %s: bearing=%.1f°, %d detections",
+            peak_bearing_lines.append(result)
+            log.info("  Pass %s (peaks): bearing=%.1f°, %d detections",
                      pass_name[:50], result[0], len(dets))
+
+    # Bearing from centroids (fallback)
+    cent_per_pass = defaultdict(list)
+    for d in all_detections:
+        cent_per_pass[d.timestamp].append(d)
+
+    centroid_bearing_lines = []
+    for pass_name, dets in cent_per_pass.items():
+        centroids_ll = [(d.lat, d.lon, d.intensity) for d in dets]
+        result = fit_streak_bearing(centroids_ll)
+        if result is not None:
+            centroid_bearing_lines.append(result)
+            log.info("  Pass %s (centroids): bearing=%.1f°, %d detections",
+                     pass_name[:50], result[0], len(dets))
+
+    # Use peak bearings if available, otherwise centroid bearings
+    bearing_lines = peak_bearing_lines if len(peak_bearing_lines) >= 2 else centroid_bearing_lines
 
     bearing_intersection = None
     if len(bearing_lines) >= 2:
         bearing_intersection = intersect_bearing_lines(bearing_lines)
         if bearing_intersection:
-            from rfi_validation import geodesic_distance_km
             bi_lat, bi_lon = bearing_intersection
             bi_error = geodesic_distance_km(gt_lat, gt_lon, bi_lat, bi_lon)
             log.info("  Bearing intersection: %.4f°N, %.4f°E (error=%.2f km)",
                      bi_lat, bi_lon, bi_error)
 
-    # Attach bearing intersection to detections metadata for localization
-    if bearing_intersection:
-        for d in all_detections:
+    # Step 3: 1/r² inverse-distance fit on all detections (centroids + peaks combined)
+    combined = all_detections + all_peak_detections
+    inv_dist_result = fit_nisar_inverse_distance(combined, gt_lat, gt_lon)
+
+    # Also try 1/r² on peaks alone (may be cleaner signal)
+    inv_dist_peaks = fit_nisar_inverse_distance(all_peak_detections, gt_lat, gt_lon)
+
+    # Pick the best 1/r² result
+    best_inv = None
+    for label, inv in [("combined", inv_dist_result), ("peaks-only", inv_dist_peaks)]:
+        if inv is not None:
+            log.info("  NISAR 1/r² (%s): %.2f km error", label, inv["error_km"])
+            if best_inv is None or inv["error_km"] < best_inv["error_km"]:
+                best_inv = inv
+
+    # Attach all localization options to detection metadata
+    for d in all_detections:
+        if bearing_intersection:
             d.metadata["bearing_intersection"] = {
                 "lat": bearing_intersection[0],
                 "lon": bearing_intersection[1],
             }
+        if best_inv:
+            d.metadata["inv_dist_fit"] = best_inv
 
-    log.info("NISAR final detections: %d", len(all_detections))
+    log.info("NISAR final detections: %d centroids + %d peaks", len(all_detections), len(all_peak_detections))
+
+    # Log comparison of all methods
+    methods = []
+    if bearing_intersection:
+        methods.append(("bearing intersection", bi_error))
+    if best_inv:
+        methods.append(("1/r² fit", best_inv["error_km"]))
+    if all_detections:
+        from rfi_validation import weighted_centroid
+        wc_lat, wc_lon = weighted_centroid(
+            [d.lat for d in all_detections], [d.lon for d in all_detections],
+            [d.intensity for d in all_detections])
+        wc_error = geodesic_distance_km(gt_lat, gt_lon, wc_lat, wc_lon)
+        methods.append(("weighted centroid", wc_error))
+    if all_peak_detections:
+        from rfi_validation import weighted_centroid as wc2
+        pk_lat, pk_lon = wc2(
+            [d.lat for d in all_peak_detections], [d.lon for d in all_peak_detections],
+            [d.intensity for d in all_peak_detections])
+        pk_error = geodesic_distance_km(gt_lat, gt_lon, pk_lat, pk_lon)
+        methods.append(("peak centroid", pk_error))
+
+    if methods:
+        methods.sort(key=lambda x: x[1])
+        log.info("NISAR method comparison:")
+        for name, err in methods:
+            log.info("  %s: %.2f km", name, err)
+        log.info("  Best: %s (%.2f km)", methods[0][0], methods[0][1])
+
     return all_detections

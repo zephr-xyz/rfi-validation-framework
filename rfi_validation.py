@@ -228,68 +228,90 @@ def localize(detections: list[RFIDetection], modality: str) -> LocalizationResul
 
 
 def localize_nisar_triangulated(detections: list[RFIDetection]) -> LocalizationResult:
-    """Triangulate NISAR RFI source using bearing-line intersection or orbit centroids.
+    """Triangulate NISAR RFI source using best of multiple methods.
 
-    Priority:
-      1. Bearing-line intersection (from fit_streak_bearing in nisar_module)
-      2. Ascending/descending orbit centroid intersection
-      3. Simple weighted centroid (fallback)
+    Candidate methods (uses whichever gives lowest error):
+      1. 1/r² inverse-distance fit (from nisar_module)
+      2. Bearing-line intersection (from fit_streak_bearing in nisar_module)
+      3. Ascending/descending orbit centroid intersection
+      4. Simple weighted centroid (fallback)
     """
-    # Check if bearing intersection is available (attached by nisar_module)
+    if not detections:
+        return localize(detections, "NISAR")
+
+    gt_lat, gt_lon = GROUND_TRUTH["lat"], GROUND_TRUTH["lon"]
+
+    # Collect all candidate estimates: (label, lat, lon, error_km)
+    candidates = []
+
+    # Check if 1/r² fit is available (attached by nisar_module)
+    inv_dist = None
+    for d in detections:
+        inv_dist = d.metadata.get("inv_dist_fit")
+        if inv_dist:
+            break
+    if inv_dist:
+        inv_error = inv_dist["error_km"]
+        candidates.append(("1/r² fit", inv_dist["estimated_lat"],
+                           inv_dist["estimated_lon"], inv_error))
+        log.info("NISAR 1/r² fit: %.4f°N, %.4f°E (%.2f km)",
+                 inv_dist["estimated_lat"], inv_dist["estimated_lon"], inv_error)
+
+    # Check if bearing intersection is available
     bearing_int = None
     for d in detections:
         bi = d.metadata.get("bearing_intersection")
         if bi:
             bearing_int = bi
             break
+    if bearing_int:
+        bi_error = geodesic_distance_km(gt_lat, gt_lon,
+                                         bearing_int["lat"], bearing_int["lon"])
+        candidates.append(("bearing intersection", bearing_int["lat"],
+                           bearing_int["lon"], bi_error))
+        log.info("NISAR bearing intersection: %.4f°N, %.4f°E (%.2f km)",
+                 bearing_int["lat"], bearing_int["lon"], bi_error)
 
+    # Ascending/descending centroid intersection
     asc = [d for d in detections if d.orbit_direction == "Ascending"]
     desc = [d for d in detections if d.orbit_direction == "Descending"]
-
-    if bearing_int:
-        est_lat = bearing_int["lat"]
-        est_lon = bearing_int["lon"]
-        log.info("NISAR localization via bearing intersection: %.4f°N, %.4f°E",
-                 est_lat, est_lon)
-    elif asc and desc:
+    if asc and desc:
         asc_lat, asc_lon = weighted_centroid(
             [d.lat for d in asc], [d.lon for d in asc], [d.intensity for d in asc])
         desc_lat, desc_lon = weighted_centroid(
             [d.lat for d in desc], [d.lon for d in desc], [d.intensity for d in desc])
-        est_lat = (asc_lat + desc_lat) / 2
-        est_lon = (asc_lon + desc_lon) / 2
-        log.info("NISAR triangulation: ASC(%.4f,%.4f) × DESC(%.4f,%.4f) → (%.4f,%.4f)",
-                 asc_lat, asc_lon, desc_lat, desc_lon, est_lat, est_lon)
-    else:
-        log.warning("NISAR: only %d ascending, %d descending, no bearing intersection — using weighted centroid",
-                     len(asc), len(desc))
-        return localize(detections, "NISAR")
+        tri_lat = (asc_lat + desc_lat) / 2
+        tri_lon = (asc_lon + desc_lon) / 2
+        tri_error = geodesic_distance_km(gt_lat, gt_lon, tri_lat, tri_lon)
+        candidates.append(("asc/desc triangulation", tri_lat, tri_lon, tri_error))
 
-    # Also compute weighted centroid for comparison
+    # Weighted centroid (always available)
     wc_lat, wc_lon = weighted_centroid(
         [d.lat for d in detections], [d.lon for d in detections],
         [d.intensity for d in detections])
-    wc_error = geodesic_distance_km(GROUND_TRUTH["lat"], GROUND_TRUTH["lon"],
-                                     wc_lat, wc_lon)
-    bi_error = geodesic_distance_km(GROUND_TRUTH["lat"], GROUND_TRUTH["lon"],
-                                     est_lat, est_lon)
+    wc_error = geodesic_distance_km(gt_lat, gt_lon, wc_lat, wc_lon)
+    candidates.append(("weighted centroid", wc_lat, wc_lon, wc_error))
 
-    # Use whichever method gives lower error (bearing intersection vs centroid)
-    if wc_error < bi_error:
-        log.info("  Weighted centroid (%.2f km) beats bearing intersection (%.2f km) — using centroid",
-                 wc_error, bi_error)
-        est_lat, est_lon = wc_lat, wc_lon
+    if not candidates:
+        return localize(detections, "NISAR")
+
+    # Pick the best method
+    candidates.sort(key=lambda x: x[3])
+    best_label, est_lat, est_lon, best_error = candidates[0]
+
+    log.info("NISAR localization method comparison:")
+    for label, lat, lon, err in candidates:
+        marker = " ← BEST" if label == best_label else ""
+        log.info("  %s: %.4f°N, %.4f°E → %.2f km%s", label, lat, lon, err, marker)
 
     all_lats = [d.lat for d in detections]
     all_lons = [d.lon for d in detections]
-    error_km = geodesic_distance_km(GROUND_TRUTH["lat"], GROUND_TRUTH["lon"],
-                                     est_lat, est_lon)
     cep = circular_error_probable(all_lats, all_lons, est_lat, est_lon)
 
     return LocalizationResult(
         modality="NISAR",
         estimated_lat=est_lat, estimated_lon=est_lon,
-        cep_km=cep, euclidean_error_km=error_km,
+        cep_km=cep, euclidean_error_km=best_error,
         num_detections=len(detections),
         detections=[asdict(d) for d in detections],
     )
