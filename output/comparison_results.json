@@ -11384,9 +11384,19 @@
           "pixel_row": 1911,
           "pixel_col": 2725,
           "track": 157,
+          "method": "centroid",
+          "detection_source": "evd_fallback",
           "bearing_intersection": {
             "lat": 27.363473626312025,
             "lon": 52.90818902184844
+          },
+          "inv_dist_fit": {
+            "estimated_lat": 27.35018154417972,
+            "estimated_lon": 52.98000556085243,
+            "error_km": 11.42,
+            "amplitude": 38.62,
+            "residual": 1.456401,
+            "n_points": 17
           }
         }
       },
@@ -11402,9 +11412,19 @@
           "pixel_row": 1962,
           "pixel_col": 2369,
           "track": 157,
+          "method": "centroid",
+          "detection_source": "evd_fallback",
           "bearing_intersection": {
             "lat": 27.363473626312025,
             "lon": 52.90818902184844
+          },
+          "inv_dist_fit": {
+            "estimated_lat": 27.35018154417972,
+            "estimated_lon": 52.98000556085243,
+            "error_km": 11.42,
+            "amplitude": 38.62,
+            "residual": 1.456401,
+            "n_points": 17
           }
         }
       },
@@ -11420,9 +11440,19 @@
           "pixel_row": 2080,
           "pixel_col": 2454,
           "track": 157,
+          "method": "centroid",
+          "detection_source": "evd_fallback",
           "bearing_intersection": {
             "lat": 27.363473626312025,
             "lon": 52.90818902184844
+          },
+          "inv_dist_fit": {
+            "estimated_lat": 27.35018154417972,
+            "estimated_lon": 52.98000556085243,
+            "error_km": 11.42,
+            "amplitude": 38.62,
+            "residual": 1.456401,
+            "n_points": 17
           }
         }
       },
@@ -11438,9 +11468,19 @@
           "pixel_row": 2151,
           "pixel_col": 2655,
           "track": 157,
+          "method": "centroid",
+          "detection_source": "evd_fallback",
           "bearing_intersection": {
             "lat": 27.363473626312025,
             "lon": 52.90818902184844
+          },
+          "inv_dist_fit": {
+            "estimated_lat": 27.35018154417972,
+            "estimated_lon": 52.98000556085243,
+            "error_km": 11.42,
+            "amplitude": 38.62,
+            "residual": 1.456401,
+            "n_points": 17
           }
         }
       },
@@ -11456,9 +11496,19 @@
           "pixel_row": 2352,
           "pixel_col": 2356,
           "track": 157,
+          "method": "centroid",
+          "detection_source": "evd_fallback",
           "bearing_intersection": {
             "lat": 27.363473626312025,
             "lon": 52.90818902184844
+          },
+          "inv_dist_fit": {
+            "estimated_lat": 27.35018154417972,
+            "estimated_lon": 52.98000556085243,
+            "error_km": 11.42,
+            "amplitude": 38.62,
+            "residual": 1.456401,
+            "n_points": 17
           }
         }
       },
@@ -11474,9 +11524,19 @@
           "pixel_row": 2591,
           "pixel_col": 3334,
           "track": 157,
+          "method": "centroid",
+          "detection_source": "evd_fallback",
           "bearing_intersection": {
             "lat": 27.363473626312025,
             "lon": 52.90818902184844
+          },
+          "inv_dist_fit": {
+            "estimated_lat": 27.35018154417972,
+            "estimated_lon": 52.98000556085243,
+            "error_km": 11.42,
+            "amplitude": 38.62,
+            "residual": 1.456401,
+            "n_points": 17
           }
         }
       },
@@ -11492,9 +11552,19 @@
           "pixel_row": 2615,
           "pixel_col": 2886,
           "track": 157,
+          "method": "centroid",
+          "detection_source": "evd_fallback",
           "bearing_intersection": {
             "lat": 27.363473626312025,
             "lon": 52.90818902184844
+          },
+          "inv_dist_fit": {
+            "estimated_lat": 27.35018154417972,
+            "estimated_lon": 52.98000556085243,
+            "error_km": 11.42,
+            "amplitude": 38.62,
+            "residual": 1.456401,
+            "n_points": 17
           }
         }
       },
@@ -11510,9 +11580,19 @@
           "pixel_row": 2631,
           "pixel_col": 3240,
           "track": 157,
+          "method": "centroid",
+          "detection_source": "evd_fallback",
           "bearing_intersection": {
             "lat": 27.363473626312025,
             "lon": 52.90818902184844
+          },
+          "inv_dist_fit": {
+            "estimated_lat": 27.35018154417972,
+            "estimated_lon": 52.98000556085243,
+            "error_km": 11.42,
+            "amplitude": 38.62,
+            "residual": 1.456401,
+            "n_points": 17
           }
         }
       },
@@ -11528,9 +11608,19 @@
           "pixel_row": 1911,
           "pixel_col": 2726,
           "track": 157,
+          "method": "centroid",
+          "detection_source": "evd_fallback",
           "bearing_intersection": {
             "lat": 27.363473626312025,
             "lon": 52.90818902184844
+          },
+          "inv_dist_fit": {
+            "estimated_lat": 27.35018154417972,
+            "estimated_lon": 52.98000556085243,
+            "error_km": 11.42,
+            "amplitude": 38.62,
+            "residual": 1.456401,
+            "n_points": 17
           }
         }
       },
@@ -11546,9 +11636,19 @@
           "pixel_row": 1967,
           "pixel_col": 2372,
           "track": 157,
+          "method": "centroid",
+          "detection_source": "evd_fallback",
           "bearing_intersection": {
             "lat": 27.363473626312025,
             "lon": 52.90818902184844
+          },
+          "inv_dist_fit": {
+            "estimated_lat": 27.35018154417972,
+            "estimated_lon": 52.98000556085243,
+            "error_km": 11.42,
+            "amplitude": 38.62,
+            "residual": 1.456401,
+            "n_points": 17
           }
         }
       },
@@ -11564,9 +11664,19 @@
           "pixel_row": 2054,
           "pixel_col": 2912,
           "track": 157,
+          "method": "centroid",
+          "detection_source": "evd_fallback",
           "bearing_intersection": {
             "lat": 27.363473626312025,
             "lon": 52.90818902184844
+          },
+          "inv_dist_fit": {
+            "estimated_lat": 27.35018154417972,
+            "estimated_lon": 52.98000556085243,
+            "error_km": 11.42,
+            "amplitude": 38.62,
+            "residual": 1.456401,
+            "n_points": 17
           }
         }
       },
@@ -11582,9 +11692,19 @@
           "pixel_row": 2151,
           "pixel_col": 2655,
           "track": 157,
+          "method": "centroid",
+          "detection_source": "evd_fallback",
           "bearing_intersection": {
             "lat": 27.363473626312025,
             "lon": 52.90818902184844
+          },
+          "inv_dist_fit": {
+            "estimated_lat": 27.35018154417972,
+            "estimated_lon": 52.98000556085243,
+            "error_km": 11.42,
+            "amplitude": 38.62,
+            "residual": 1.456401,
+            "n_points": 17
           }
         }
       },
@@ -11600,9 +11720,19 @@
           "pixel_row": 2159,
           "pixel_col": 2591,
           "track": 157,
+          "method": "centroid",
+          "detection_source": "evd_fallback",
           "bearing_intersection": {
             "lat": 27.363473626312025,
             "lon": 52.90818902184844
+          },
+          "inv_dist_fit": {
+            "estimated_lat": 27.35018154417972,
+            "estimated_lon": 52.98000556085243,
+            "error_km": 11.42,
+            "amplitude": 38.62,
+            "residual": 1.456401,
+            "n_points": 17
           }
         }
       },
@@ -11618,9 +11748,19 @@
           "pixel_row": 2352,
           "pixel_col": 2352,
           "track": 157,
+          "method": "centroid",
+          "detection_source": "evd_fallback",
           "bearing_intersection": {
             "lat": 27.363473626312025,
             "lon": 52.90818902184844
+          },
+          "inv_dist_fit": {
+            "estimated_lat": 27.35018154417972,
+            "estimated_lon": 52.98000556085243,
+            "error_km": 11.42,
+            "amplitude": 38.62,
+            "residual": 1.456401,
+            "n_points": 17
           }
         }
       },
@@ -11636,9 +11776,19 @@
           "pixel_row": 2535,
           "pixel_col": 2848,
           "track": 157,
+          "method": "centroid",
+          "detection_source": "evd_fallback",
           "bearing_intersection": {
             "lat": 27.363473626312025,
             "lon": 52.90818902184844
+          },
+          "inv_dist_fit": {
+            "estimated_lat": 27.35018154417972,
+            "estimated_lon": 52.98000556085243,
+            "error_km": 11.42,
+            "amplitude": 38.62,
+            "residual": 1.456401,
+            "n_points": 17
           }
         }
       },
@@ -11654,9 +11804,19 @@
           "pixel_row": 2620,
           "pixel_col": 2885,
           "track": 157,
+          "method": "centroid",
+          "detection_source": "evd_fallback",
           "bearing_intersection": {
             "lat": 27.363473626312025,
             "lon": 52.90818902184844
+          },
+          "inv_dist_fit": {
+            "estimated_lat": 27.35018154417972,
+            "estimated_lon": 52.98000556085243,
+            "error_km": 11.42,
+            "amplitude": 38.62,
+            "residual": 1.456401,
+            "n_points": 17
           }
         }
       },
@@ -11672,13 +11832,32 @@
           "pixel_row": 2631,
           "pixel_col": 3240,
           "track": 157,
+          "method": "centroid",
+          "detection_source": "evd_fallback",
           "bearing_intersection": {
             "lat": 27.363473626312025,
             "lon": 52.90818902184844
+          },
+          "inv_dist_fit": {
+            "estimated_lat": 27.35018154417972,
+            "estimated_lon": 52.98000556085243,
+            "error_km": 11.42,
+            "amplitude": 38.62,
+            "residual": 1.456401,
+            "n_points": 17
           }
         }
       }
     ]
+  },
+  "fused": {
+    "modality": "Fused (Bayesian posterior)",
+    "estimated_lat": 27.363447234881765,
+    "estimated_lon": 52.90812681562088,
+    "cep_km": 6.870126822702179,
+    "euclidean_error_km": 6.256919043603009,
+    "num_detections": 802,
+    "detections": []
   },
   "cygnss_baseline": {
     "modality": "CYGNSS_baseline",
