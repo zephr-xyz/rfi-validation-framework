@@ -710,10 +710,11 @@ def fit_inverse_distance_model(measurements, baseline_measurements, gt_lat, gt_l
         boot_std_lon = float(np.std(boot_lons) * 111.0 * cos_lat)
         log.info("  Bootstrap CEP (n=%d): %.2f km (σ_lat=%.2f km, σ_lon=%.2f km)",
                  len(boot_lats), boot_cep, boot_std_lat, boot_std_lon)
-        # Use the tighter of bootstrap or Hessian CEP as reported value
-        if hess_cep is not None and hess_cep < boot_cep:
-            log.info("  → Using Hessian CEP (%.2f km) as tighter bound", hess_cep)
-            boot_cep = hess_cep
+        # Always prefer bootstrap CEP (global stability measure).
+        # Hessian is local curvature — can be overconfident if cost surface has
+        # multiple basins. Log both for comparison.
+        if hess_cep is not None:
+            log.info("  Hessian CEP (local curvature): %.2f km — bootstrap preferred", hess_cep)
     else:
         boot_cep = hess_cep  # fall back to Hessian
         boot_std_lat = None
