@@ -100,6 +100,24 @@ With comparable CEPs (3.48 km vs 6.88 km), fusion now produces genuinely blended
 ### For the Adversary
 These results demonstrate that GPS jammers operating in contested airspace are observable and localizable from orbit using openly available civilian satellite data. The 4.33 km CYGNSS result is approximately 2× better than the published state of the art for GNSS-R jammer localization (~9 km grid resolution, Chew et al. 2023), and the NISAR bearing intersection approach has not been previously demonstrated for jammer geolocation.
 
+## Still Broadcasting: Jammer Persistence Through Conflict
+
+The validation analysis used January 2026 data. But on February 28, 2026, armed conflict erupted in the region. Did the jammer survive?
+
+We ran the CYGNSS noise floor detection pipeline for each day from February 28 through April 6, comparing against the December 2025 baseline. The answer is unambiguous: the jammer is not only still active — it is operating at dramatically higher power.
+
+In January, the jammer elevated the CYGNSS noise floor by approximately 15% above baseline. By early March — days after the conflict began — noise elevation had jumped to 50-60%. By mid-March it reached 70-84%, where it has remained through early April. Detection counts tell the same story: 89-192 per day in January, rising to 1,000-2,000 per day during the conflict (**Figure 8**).
+
+The escalation was immediate. On February 28, noise elevation was +34.5% — already double the January level. By March 3 it had reached +62.7%, and by March 20 it peaked at +83.7%. The signal has remained at 5× the January intensity through the most recent available data (April 6, 2026).
+
+Several interpretations are consistent with this pattern:
+
+- **Power increase**: The operator increased jammer output power, perhaps in response to the conflict or as a defensive posture against GPS-guided munitions.
+- **Additional jammers**: Multiple units may have been co-located or deployed nearby, creating an aggregate signature larger than any single device.
+- **Duty cycle change**: The jammer may have shifted from intermittent to continuous operation.
+
+What is clear is that the jammer we localized in January was not incapacitated by the conflict. It was amplified. CYGNSS's sub-daily revisit capability makes this kind of persistent monitoring possible using entirely passive, civilian satellite data — no tasking, no cooperation with the target state, and no risk to reconnaissance assets.
+
 ## Context and Prior Work
 
 CYGNSS-based RFI detection builds on work by Chew et al. (2023), who demonstrated grid-level jammer detection at approximately 9 km resolution using DDM noise floor anomalies. Our 1/r² parametric fit extends this from detection to localization, achieving sub-5 km accuracy by exploiting the physics of signal power decay.
@@ -132,7 +150,7 @@ All analysis code is open source at github.com/zephr-xyz/rfi-validation-framewor
 
 Two satellites, two physics, one jammer. CYGNSS sees the interference footprint across hundreds of kilometers and localizes the source through inverse-distance physics. NISAR sees the emissions directly in its SAR receiver and triangulates through bearing intersection. Both achieve sub-7 km accuracy independently; together, they cross-validate and build the confidence that operational use demands.
 
-The jammer near Shiraz is still there. The satellites are still watching.
+The jammer near Shiraz is still there — louder than ever. The satellites are still watching.
 
 ---
 

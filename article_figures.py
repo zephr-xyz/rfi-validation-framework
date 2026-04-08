@@ -903,6 +903,144 @@ def figure7_dashboard(data):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# FIGURE 8 — Jammer Persistence Timeline
+# ═══════════════════════════════════════════════════════════════════════════
+
+def figure8_timeline(data):
+    """Jammer activity from Jan through Apr 2026 showing escalation during conflict."""
+    setup_dark_style()
+    fig, (ax_elev, ax_det) = plt.subplots(2, 1, figsize=(14, 9), sharex=True,
+                                           gridspec_kw={"height_ratios": [2, 1]})
+
+    from datetime import datetime
+
+    # All data points collected (date, elevation_pct, detections, near_50km)
+    timeline = [
+        # Baseline (jammer OFF)
+        ("2025-12-15", 0.0, 0, 0),
+        ("2025-12-27", 0.0, 0, 0),
+        # January (jammer ON — original validation)
+        ("2026-01-08", 14.5, 89, 2),
+        ("2026-01-09", 16.6, 137, 31),
+        ("2026-01-20", 9.7, 2, 0),
+        ("2026-01-21", 17.0, 192, 18),
+        # Feb 28 — conflict starts
+        ("2026-02-28", 34.5, 584, 31),
+        # March escalation
+        ("2026-03-01", 51.2, 908, 84),
+        ("2026-03-02", 51.6, 856, 47),
+        ("2026-03-03", 62.7, 1085, 18),
+        ("2026-03-07", 66.3, 1735, 104),
+        ("2026-03-15", 68.9, 2024, 117),
+        ("2026-03-20", 83.7, 1138, 81),
+        ("2026-03-21", 73.7, 1177, 50),
+        ("2026-03-25", 67.5, 1533, 108),
+        ("2026-03-30", 77.9, 1651, 102),
+        ("2026-03-31", 74.8, 1455, 11),
+        # April — still active
+        ("2026-04-04", 66.5, 1261, 148),
+        ("2026-04-06", 79.1, 725, 0),
+    ]
+
+    dates = [datetime.strptime(d[0], "%Y-%m-%d") for d in timeline]
+    elevations = [d[1] for d in timeline]
+    detections = [d[2] for d in timeline]
+
+    # Color by phase
+    phase_colors = []
+    for d in timeline:
+        dt = datetime.strptime(d[0], "%Y-%m-%d")
+        if dt < datetime(2026, 1, 1):
+            phase_colors.append(FUSED_COLOR)  # baseline
+        elif dt < datetime(2026, 2, 28):
+            phase_colors.append(CYGNSS_COLOR)  # pre-conflict ON
+        else:
+            phase_colors.append("#e03131")  # conflict period
+
+    text_fx = [pe.withStroke(linewidth=3, foreground=BG_COLOR)]
+
+    # ── Top: Noise elevation ─────────────────────────────────────────────
+    ax_elev.fill_between(dates, elevations, alpha=0.15, color="#e03131")
+    ax_elev.plot(dates, elevations, color="#e03131", linewidth=2, zorder=3)
+    ax_elev.scatter(dates, elevations, c=phase_colors, s=60, edgecolors="white",
+                   linewidths=1, zorder=5)
+
+    # Baseline reference line
+    ax_elev.axhline(y=0, color=FUSED_COLOR, linewidth=1.5, linestyle="--",
+                   alpha=0.7, label="Baseline (jammer OFF)")
+
+    # Conflict start line
+    conflict_date = datetime(2026, 2, 28)
+    ax_elev.axvline(x=conflict_date, color=GT_COLOR, linewidth=2, linestyle=":",
+                   alpha=0.9, zorder=4)
+    ax_elev.text(conflict_date, max(elevations) * 0.95, "  Conflict\n  begins",
+                fontsize=10, fontweight="bold", color=GT_COLOR,
+                path_effects=text_fx, va="top")
+
+    # January ON label
+    jan_date = datetime(2026, 1, 14)
+    ax_elev.annotate("January\nvalidation\nperiod", xy=(jan_date, 17),
+                    fontsize=9, color=CYGNSS_COLOR, ha="center",
+                    path_effects=text_fx)
+
+    # Escalation annotation
+    mar_date = datetime(2026, 3, 10)
+    ax_elev.annotate("Signal intensity\n~5x January levels",
+                    xy=(datetime(2026, 3, 15), 68.9),
+                    xytext=(datetime(2026, 3, 8), 45),
+                    fontsize=10, fontweight="bold", color="#e03131",
+                    path_effects=text_fx,
+                    arrowprops=dict(arrowstyle="->", color="#e03131", lw=2))
+
+    ax_elev.set_ylabel("Noise Floor Elevation (%)", fontsize=12)
+    ax_elev.set_ylim(-5, 95)
+    ax_elev.grid(True, alpha=0.3)
+    ax_elev.set_title("GPS Jammer Persistence: Shiraz, Iran — December 2025 to April 2026",
+                     fontsize=14, fontweight="bold")
+
+    # Legend
+    from matplotlib.lines import Line2D
+    legend_elements = [
+        Line2D([0], [0], marker="o", color="none", markerfacecolor=FUSED_COLOR,
+               markeredgecolor="white", markersize=8, label="Baseline (OFF)"),
+        Line2D([0], [0], marker="o", color="none", markerfacecolor=CYGNSS_COLOR,
+               markeredgecolor="white", markersize=8, label="January (ON)"),
+        Line2D([0], [0], marker="o", color="none", markerfacecolor="#e03131",
+               markeredgecolor="white", markersize=8, label="Conflict period (ON)"),
+        Line2D([0], [0], color=GT_COLOR, linewidth=2, linestyle=":",
+               label="Conflict start (Feb 28)"),
+    ]
+    leg = ax_elev.legend(handles=legend_elements, loc="upper left", fontsize=9)
+    leg.get_frame().set_facecolor(BG_LIGHT)
+    leg.get_frame().set_edgecolor(GRID_COLOR)
+
+    # ── Bottom: Detection count ──────────────────────────────────────────
+    ax_det.bar(dates, detections, width=1.5, color=phase_colors, alpha=0.8,
+              edgecolor="none")
+    ax_det.axvline(x=conflict_date, color=GT_COLOR, linewidth=2, linestyle=":",
+                  alpha=0.9, zorder=4)
+    ax_det.set_ylabel("CYGNSS Detections", fontsize=12)
+    ax_det.set_xlabel("Date (2025–2026)", fontsize=12)
+    ax_det.grid(True, alpha=0.3, axis="y")
+
+    # Rotate x labels
+    fig.autofmt_xdate(rotation=45)
+
+    fig.text(0.5, -0.02,
+             "CYGNSS ddm_noise_floor within 200 km of 27.32°N, 52.87°E  |  "
+             "Baseline: Dec 15 & 27, 2025 (mean=9,858)  |  "
+             "Threshold: baseline + 2.5σ",
+             ha="center", fontsize=9, color=TEXT_DIM, style="italic")
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    out = OUTPUT_DIR / "fig8_jammer_timeline.png"
+    fig.savefig(out, dpi=300, bbox_inches="tight", pad_inches=0.3)
+    plt.close(fig)
+    print(f"Saved: {out} ({out.stat().st_size / 1e6:.1f} MB)")
+    return out
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Main
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -914,6 +1052,7 @@ FIGURES = {
     5: ("Three-Column Method Comparison", figure5_method_comparison),
     6: ("Bayesian Fusion Mechanics", figure6_bayesian_fusion),
     7: ("Results Dashboard", figure7_dashboard),
+    8: ("Jammer Persistence Timeline", figure8_timeline),
 }
 
 
