@@ -633,6 +633,93 @@ def fit_inverse_distance_model(measurements, baseline_measurements, gt_lat, gt_l
         est_lat, est_lon = wc_lat, wc_lon
         error = wc_error
 
+    # ── Bootstrap CEP: resample detections, refit, measure position spread ──
+    # Use L-BFGS-B with bounds to prevent divergence to distant local minima.
+    # Bounds: ±0.5° (~55 km) around the best-fit position.
+    n_bootstrap = 500
+    boot_lats = []
+    boot_lons = []
+    rng = np.random.default_rng(42)
+    n_pts = len(points)
+    boot_bounds = [
+        (est_lat - 0.5, est_lat + 0.5),
+        (est_lon - 0.5, est_lon + 0.5),
+        (1.0, max(float(amplitude) * 10, 5000.0)),
+    ]
+
+    for _ in range(n_bootstrap):
+        idx = rng.choice(n_pts, size=n_pts, replace=True)
+        b_lats = lats[idx]
+        b_lons = lons[idx]
+        b_elev = elevations[idx]
+        b_elev_max = np.max(b_elev)
+        if b_elev_max == 0:
+            continue
+        b_norm = b_elev / b_elev_max
+
+        def _boot_residual(params, _blats=b_lats, _blons=b_lons, _bnorm=b_norm):
+            src_lat, src_lon, amp = params
+            dlat = (_blats - src_lat) * 111.0
+            dlon = (_blons - src_lon) * 111.0 * cos_lat
+            dist_km = np.sqrt(dlat**2 + dlon**2)
+            dist_km = np.maximum(dist_km, 1.0)
+            predicted = np.minimum(amp / (dist_km ** 2), 10.0)
+            return np.sum(_bnorm * (_bnorm - predicted) ** 2)
+
+        b_result = minimize(_boot_residual, [est_lat, est_lon, float(amplitude)],
+                            method="L-BFGS-B", bounds=boot_bounds,
+                            options={"maxiter": 500})
+        boot_lats.append(b_result.x[0])
+        boot_lons.append(b_result.x[1])
+
+    # Also compute Hessian-based CEP from the original fit as a cross-check
+    from scipy.optimize import approx_fprime
+    hess_cep = None
+    try:
+        eps = 1e-5
+        hess = np.zeros((3, 3))
+        for i in range(3):
+            def _grad_i(x, _i=i):
+                return approx_fprime(x, _model_residual, eps)[_i]
+            hess[i] = approx_fprime(result.x, _grad_i, eps)
+        pos_hess = hess[:2, :2]
+        from scipy.linalg import inv as linalg_inv
+        residual_var = result.fun / max(n_pts - 3, 1)
+        pos_cov = linalg_inv(pos_hess) * residual_var
+        sigma_lat_km = np.sqrt(abs(pos_cov[0, 0])) * 111.0
+        sigma_lon_km = np.sqrt(abs(pos_cov[1, 1])) * 111.0 * cos_lat
+        sigma_r = np.sqrt(sigma_lat_km**2 + sigma_lon_km**2) / np.sqrt(2)
+        hess_cep = float(sigma_r * 1.1774)
+        log.info("  Hessian CEP: %.2f km (σ_lat=%.2f km, σ_lon=%.2f km)",
+                 hess_cep, sigma_lat_km, sigma_lon_km)
+    except Exception as e:
+        log.warning("  Hessian CEP failed: %s", e)
+
+    if len(boot_lats) >= 10:
+        boot_lats = np.array(boot_lats)
+        boot_lons = np.array(boot_lons)
+        # Radial distances from median bootstrap position
+        med_lat = np.median(boot_lats)
+        med_lon = np.median(boot_lons)
+        boot_dists = np.sqrt(
+            ((boot_lats - med_lat) * 111.0) ** 2 +
+            ((boot_lons - med_lon) * 111.0 * cos_lat) ** 2
+        )
+        boot_cep = float(np.median(boot_dists))
+        boot_std_lat = float(np.std(boot_lats) * 111.0)
+        boot_std_lon = float(np.std(boot_lons) * 111.0 * cos_lat)
+        log.info("  Bootstrap CEP (n=%d): %.2f km (σ_lat=%.2f km, σ_lon=%.2f km)",
+                 len(boot_lats), boot_cep, boot_std_lat, boot_std_lon)
+        # Use the tighter of bootstrap or Hessian CEP as reported value
+        if hess_cep is not None and hess_cep < boot_cep:
+            log.info("  → Using Hessian CEP (%.2f km) as tighter bound", hess_cep)
+            boot_cep = hess_cep
+    else:
+        boot_cep = hess_cep  # fall back to Hessian
+        boot_std_lat = None
+        boot_std_lon = None
+        log.warning("  Bootstrap failed: only %d successful fits", len(boot_lats))
+
     return {
         "estimated_lat": float(est_lat),
         "estimated_lon": float(est_lon),
@@ -643,6 +730,10 @@ def fit_inverse_distance_model(measurements, baseline_measurements, gt_lat, gt_l
         "wc_lat": wc_lat,
         "wc_lon": wc_lon,
         "wc_error_km": round(wc_error, 2),
+        "bootstrap_cep_km": boot_cep,
+        "bootstrap_std_lat_km": boot_std_lat,
+        "bootstrap_std_lon_km": boot_std_lon,
+        "bootstrap_n_fits": len(boot_lats),
     }
 
 

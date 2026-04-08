@@ -133,13 +133,20 @@ def main():
             cygnss_result.estimated_lat = cygnss_inv_dist["estimated_lat"]
             cygnss_result.estimated_lon = cygnss_inv_dist["estimated_lon"]
             cygnss_result.euclidean_error_km = inv_error
-            # Recompute CEP around new estimate
-            from rfi_validation import circular_error_probable
-            det_lats = [d.lat for d in cygnss_detections]
-            det_lons = [d.lon for d in cygnss_detections]
-            cygnss_result.cep_km = circular_error_probable(
-                det_lats, det_lons,
-                cygnss_result.estimated_lat, cygnss_result.estimated_lon)
+            # Use bootstrap CEP if available (fit uncertainty, not raw scatter)
+            boot_cep = cygnss_inv_dist.get("bootstrap_cep_km")
+            if boot_cep is not None:
+                log.info("  Bootstrap CEP: %.2f km (n=%d fits)",
+                         boot_cep, cygnss_inv_dist.get("bootstrap_n_fits", 0))
+                cygnss_result.cep_km = boot_cep
+            else:
+                # Fallback: raw scatter CEP
+                from rfi_validation import circular_error_probable
+                det_lats = [d.lat for d in cygnss_detections]
+                det_lons = [d.lon for d in cygnss_detections]
+                cygnss_result.cep_km = circular_error_probable(
+                    det_lats, det_lons,
+                    cygnss_result.estimated_lat, cygnss_result.estimated_lon)
 
     nisar_result = localize_nisar_triangulated(nisar_detections)
     cygnss_baseline_result = localize(cygnss_baseline, "CYGNSS_baseline")
