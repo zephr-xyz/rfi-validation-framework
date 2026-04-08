@@ -11,6 +11,7 @@ Usage:
 
 import json
 from pathlib import Path
+from PIL import Image
 
 import numpy as np
 import matplotlib
@@ -23,6 +24,7 @@ from scipy.ndimage import gaussian_filter
 
 RESULTS_JSON = Path("output/comparison_results.json")
 OUTPUT_DIR = Path("output/article_figures")
+INSET_IMG = Path("assets/inset_jammer_site.png")
 
 GT_LAT, GT_LON = 27.3182, 52.8703
 BG = "#0a0a0a"
@@ -198,6 +200,18 @@ def main():
     ax.text(0.5, 0.93, "CYGNSS GNSS-R  |  4.33 km accuracy  |  Shiraz, Iran  |  January 2026",
             transform=ax.transAxes, fontsize=10, color=WHITE_DIM,
             ha="center", va="top", path_effects=text_fx, zorder=30)
+
+    # ── Inset — ground truth satellite image ────────────────────────────
+    if INSET_IMG.exists():
+        inset_img = Image.open(INSET_IMG)
+        # Place in lower-left corner
+        inset_ax = fig.add_axes([0.02, 0.02, 0.25, 0.25], zorder=40)
+        inset_ax.imshow(inset_img)
+        inset_ax.set_xticks([])
+        inset_ax.set_yticks([])
+        for spine in inset_ax.spines.values():
+            spine.set_edgecolor(WHITE)
+            spine.set_linewidth(1.5)
 
     # ── Clean axes ───────────────────────────────────────────────────────
     ax.set_xticks([])
