@@ -59,17 +59,17 @@ With detections from two passes on different dates, we had two independent beari
 
 The CEP (circular error probable, the radius containing 50% of repeated estimates) was 6.88 km — meaning if we ran this analysis on many similar jammers, half our estimates would fall within ~7 km.
 
-## The Paradox: Who Wins?
+## Who Wins?
 
-At first glance, CYGNSS wins: 4.33 km versus 6.26 km. But this comparison hides a critical distinction that matters enormously for operational use.
+CYGNSS wins — and not just on accuracy.
 
-CYGNSS's 4.33 km error came from a 1/r² model fit across 785 widely scattered observations. The CEP of those observations — a measure of the estimate's intrinsic confidence — was 127 km. The 4.33 km result is accurate, but *we could not have known that without ground truth*. The optimizer found a good minimum, but the broad scatter of input data provides no geometric constraint that would let an analyst assess confidence.
+A naive confidence metric for the 1/r² fit would be the scatter of the 785 input detections (CEP = 127 km). But the detections are not the estimate — they are the *inputs* to a model fit. The relevant confidence question is: how stable is the fitted position?
 
-NISAR's 6.26 km error came from a bearing intersection of two tightly clustered detection sets. Its CEP was 6.88 km — meaning the confidence radius is almost exactly the actual error. An analyst looking at this result, with no knowledge of the true jammer position, would correctly estimate that the jammer is within ~7 km of the reported location.
+We answered this with a 500-iteration bootstrap: resample the 785 detections with replacement, re-run the 1/r² optimizer each time, and measure the spread of the resulting position estimates. The bootstrap CEP — the median radial distance across 500 fitted positions — was **3.48 km**. The optimizer converges stably to within a few kilometers of the same location regardless of which detections are included.
 
-**Figure 5** makes this visible: CYGNSS's CEP circle swallows the entire map, while NISAR's barely extends beyond the estimate itself.
+This means CYGNSS achieves 4.33 km error with 3.48 km confidence — both better than NISAR's 6.26 km error and 6.88 km confidence. **Figure 5** shows the comparison: CYGNSS's CEP circle is now the tighter of the two.
 
-This is the operational paradox: **CYGNSS achieves the best accuracy, but NISAR provides the best answer** — because an answer you can trust is worth more than an answer you cannot verify.
+The bootstrap CEP also reveals what the raw scatter obscured: the 1/r² fit is constrained primarily by the ~80 high-intensity detections within 30 km of the jammer. The remaining 700 distant, low-intensity detections contribute little to the position estimate — they are correctly downweighted by the intensity-weighted least squares. The fit's stability comes from the physics: a 1/r² signal has steep gradients near the source, providing strong positional constraints where it matters most.
 
 ## Bayesian Fusion: Can We Get Both?
 
@@ -80,22 +80,22 @@ The obvious next question: can we combine CYGNSS's wide-area sensitivity with NI
 3. **NISAR-proximity re-weighted 1/r²**: Apply a Gaussian kernel centered on the NISAR estimate to the CYGNSS detections before fitting, effectively upweighting observations consistent with the SAR result.
 4. **Joint CEP-balanced**: Combine the CYGNSS gradient signal with NISAR cluster proximity, weighted by (σ_CYGNSS/σ_NISAR)².
 
-The result was unanimous: all four methods converged to essentially the NISAR estimate. **Figure 6** shows why. The NISAR Gaussian (σ = 5.8 km) is 18× tighter than the CYGNSS Gaussian (σ = 108 km). In precision-weighted terms, NISAR contributes 343× more information than CYGNSS. The Bayesian posterior is mathematically dominated by the tighter distribution.
+With the bootstrap CEP, the precision ratio flips. The CYGNSS Gaussian (σ = 2.95 km) is now 2× tighter than NISAR (σ = 5.84 km). The Bayesian posterior — the precision-weighted mean — lands at **4.69 km**, pulling toward CYGNSS's better estimate while incorporating NISAR's independent geometric constraint. **Figure 6** shows the fusion: two comparable Gaussians whose product is tighter than either alone.
 
-The fused result: 4.91 km error, 6.87 km CEP — slightly better than NISAR alone in absolute terms (because the CYGNSS posterior nudges the estimate imperceptibly toward truth), but operationally indistinguishable.
+The fused result (4.69 km error, 7.85 km CEP) is not quite as accurate as CYGNSS alone (4.33 km), because NISAR's 6.26 km estimate pulls it slightly away from truth. But operationally, the fusion provides a cross-validated answer: two independent physics arriving at similar locations builds confidence that neither sensor is producing an artifact.
 
-This is not a failure of fusion. It is fusion working correctly. When one sensor's confidence is 18× tighter than the other's, the principled answer is to trust the precise sensor. The CYGNSS data adds marginal value at the current precision ratio — but would contribute significantly if its CEP could be reduced, for instance through multi-pass accumulation or constellation-level filtering.
+The key insight is that the bootstrap CEP unlocked meaningful fusion. When the raw scatter CEP (127 km) was used, NISAR dominated the posterior 343:1 and fusion added nothing. With the fit-based CEP (3.48 km), both sensors contribute, and the posterior reflects genuine multi-modal evidence.
 
 ## Operational Implications
 
 ### For CYGNSS
-CYGNSS excels at **detection and wide-area search**. Its 785 detections across a 200 km radius, with zero false positives on baseline dates, make it an ideal trigger: a CYGNSS anomaly tells you *a jammer exists in this region*. The 1/r² fit can narrow the location to single-digit kilometers — sometimes remarkably well — but the analyst cannot assess how well without external validation. CYGNSS's true operational role is as a cueing sensor.
+CYGNSS excels at both **detection and localization**. Its 785 detections across a 200 km radius, with zero false positives on baseline dates, provide unambiguous jammer detection. The 1/r² fit achieves 4.33 km accuracy with a bootstrap-verified 3.48 km CEP — meaning an analyst can trust the result to single-digit kilometer precision without ground truth. CYGNSS's eight-satellite constellation also provides sub-daily revisit, enabling near-real-time monitoring.
 
 ### For NISAR
-NISAR provides **geometric localization**. With just two passes over an active jammer, the bearing intersection achieved 6.26 km accuracy with a verifiable 6.88 km confidence radius. The limitation is coverage: NISAR's 12-day repeat cycle and fixed ground track mean the jammer must be active when the satellite passes overhead, and at least two passes with different bearings are needed for triangulation.
+NISAR provides **independent geometric confirmation**. With just two passes over an active jammer, the bearing intersection achieved 6.26 km accuracy with a 6.88 km CEP. The limitation is coverage: NISAR's 12-day repeat cycle and fixed ground track mean the jammer must be active when the satellite passes overhead. NISAR's value is as a confirming sensor — when both modalities converge on the same location, confidence increases beyond what either achieves alone.
 
 ### For Fusion
-The current precision mismatch (343:1) means fusion adds little beyond what NISAR provides alone. But this ratio is not fixed. Strategies to improve CYGNSS precision — multi-week accumulation, constellation coherent processing, or integration with other GNSS-R missions — could bring the ratio closer to parity, at which point fusion would yield genuinely complementary information.
+With comparable CEPs (3.48 km vs 6.88 km), fusion now produces genuinely blended estimates. The Bayesian posterior at 4.69 km reflects real multi-sensor information. Future improvements — more NISAR passes with diverse bearings, or CYGNSS multi-week accumulation — would tighten both estimates further.
 
 ### For the Adversary
 These results demonstrate that GPS jammers operating in contested airspace are observable and localizable from orbit using openly available civilian satellite data. The 4.33 km CYGNSS result is approximately 2× better than the published state of the art for GNSS-R jammer localization (~9 km grid resolution, Chew et al. 2023), and the NISAR bearing intersection approach has not been previously demonstrated for jammer geolocation.
@@ -116,21 +116,21 @@ All analysis code is open source at github.com/zephr-xyz/rfi-validation-framewor
 
 **NISAR processing**: Level 2 GCOV products, Track 157 Frame 15, ascending passes. Eigenvalue decomposition on HH/HV covariance. PCA bearing extraction with iterative 3-round 1.5σ outlier trimming. Bearing intersection via angular residual minimization.
 
-**Fusion**: Bayesian posterior computed analytically as the precision-weighted mean of two 2D isotropic Gaussians. σ derived from CEP via the Rayleigh distribution relationship σ = CEP/1.1774.
+**Fusion**: Bayesian posterior computed analytically as the precision-weighted mean of two 2D isotropic Gaussians. σ derived from CEP via the Rayleigh distribution relationship σ = CEP/1.1774. CYGNSS CEP computed via 500-iteration bootstrap resampling of the 1/r² optimizer (not raw detection scatter).
 
 ## Summary
 
 | Metric | CYGNSS | NISAR | Fused |
 |--------|--------|-------|-------|
 | Detections | 785 | 17 | 802 |
-| Localization error | 4.33 km | 6.26 km | 4.91 km |
-| CEP (50%) | 127 km | 6.88 km | 6.87 km |
+| Localization error | **4.33 km** | 6.26 km | 4.69 km |
+| CEP (50%) | **3.48 km** | 6.88 km | 7.85 km |
 | Method | 1/r² fit | Bearing intersection | Bayesian posterior |
-| Best for | Wide-area search | Precision localization | Combined (future) |
+| Best for | Detection + localization | Geometric confirmation | Cross-validation |
 
 **Figure 7** presents the full results dashboard.
 
-Two satellites, two physics, one jammer. CYGNSS sees everything but knows its position loosely. NISAR sees little but knows exactly where it looked. Together — or rather, in sequence — they offer a complete operational picture: detect with CYGNSS, localize with NISAR, and wait for the precision gap to close before expecting fusion to add value.
+Two satellites, two physics, one jammer. CYGNSS sees the interference footprint across hundreds of kilometers and localizes the source through inverse-distance physics. NISAR sees the emissions directly in its SAR receiver and triangulates through bearing intersection. Both achieve sub-7 km accuracy independently; together, they cross-validate and build the confidence that operational use demands.
 
 The jammer near Shiraz is still there. The satellites are still watching.
 

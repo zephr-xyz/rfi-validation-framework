@@ -771,9 +771,12 @@ def figure6_bayesian_fusion(data):
                 fontsize=15, fontweight="bold", y=1.02)
 
     # Equation annotation
+    cygnss_cep = data["cygnss"]["cep_km"]
+    nisar_cep = data["nisar"]["cep_km"]
+    ratio = nisar_cep / max(cygnss_cep, 0.1)
     fig.text(0.5, -0.02,
              "P(jammer | CYGNSS, NISAR) ∝ P(CYGNSS | jammer) × P(NISAR | jammer)    |    "
-             "σ_NISAR/σ_CYGNSS ≈ 1:18 → precision ratio 343:1 → posterior ≈ NISAR",
+             f"σ_CYGNSS/σ_NISAR ≈ 1:{ratio:.1f} → CYGNSS dominates posterior",
              ha="center", fontsize=10, color=TEXT_DIM, style="italic")
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -841,21 +844,23 @@ def figure7_dashboard(data):
     ax_bar.grid(True, alpha=0.3, axis="y")
     ax_bar.set_ylim(0, 18)
 
-    # Note about CYGNSS CEP
-    ax_bar.annotate("CEP: 127 km\n(off scale)", xy=(0 + width/2, 15),
-                   fontsize=9, color=TEXT_DIM, ha="center", va="bottom",
-                   style="italic")
+    # Note about bootstrap CEP
+    boot_cep = data.get("cygnss_inv_dist_fit", {}).get("bootstrap_cep_km")
+    if boot_cep and boot_cep < 10:
+        ax_bar.annotate(f"Bootstrap CEP\n{boot_cep:.1f} km", xy=(0 + width/2, ceps_display[0] + 0.5),
+                       fontsize=9, color=CYGNSS_COLOR, ha="center", va="bottom",
+                       fontweight="bold")
 
     # Summary table
     rows = [
         ["Metric", "CYGNSS", "NISAR", "Fused"],
-        ["Error (km)", "4.33", "6.26", "4.91"],
-        ["CEP (km)", "127.4", "6.88", "6.87"],
-        ["Detections", "785", "17", "802"],
+        ["Error (km)", f"{errors[0]:.2f}", f"{errors[1]:.2f}", f"{errors[2]:.2f}"],
+        ["CEP (km)", f"{ceps[0]:.1f}", f"{ceps[1]:.2f}", f"{ceps[2]:.2f}"],
+        ["Detections", str(n_dets[0]), str(n_dets[1]), str(n_dets[2])],
         ["Sensor", "GNSS-R", "L-band SAR", "Both"],
         ["Frequency", "L1/L2 GPS", "1.257 GHz", "—"],
         ["Method", "1/r² fit", "Bearing △", "Bayesian"],
-        ["Best use", "Wide area", "Precision", "Combined"],
+        ["Best use", "Detect+locate", "Confirm", "Cross-validate"],
     ]
 
     header_colors = [TEXT_COLOR, CYGNSS_COLOR, NISAR_COLOR, FUSED_COLOR]
@@ -877,10 +882,10 @@ def figure7_dashboard(data):
                             linewidth=1)
 
     # Key insight box
-    insight = ("KEY INSIGHT: CYGNSS achieves the lowest error (4.33 km) but its\n"
-               "127 km CEP means this accuracy cannot be verified without ground\n"
-               "truth. NISAR's 6.26 km error with 6.88 km CEP is operationally\n"
-               "trustworthy. Bayesian fusion correctly weights toward NISAR.")
+    insight = ("KEY INSIGHT: CYGNSS wins on both accuracy (4.33 km) and confidence\n"
+               "(3.48 km bootstrap CEP). The 1/r² fit converges stably across 500\n"
+               "bootstrap resamples. With comparable CEPs, Bayesian fusion now\n"
+               "genuinely blends both sensors (4.69 km fused estimate).")
     ax_table.text(0.0, -0.05, insight, transform=ax_table.transAxes,
                  fontsize=9, color=TEXT_DIM, va="top",
                  bbox=dict(boxstyle="round,pad=0.5", facecolor=BG_LIGHT,

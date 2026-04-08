@@ -3,7 +3,7 @@
     "modality": "CYGNSS",
     "estimated_lat": 27.354384816772576,
     "estimated_lon": 52.886766137646994,
-    "cep_km": 127.43284865626498,
+    "cep_km": 3.479369977811172,
     "euclidean_error_km": 4.33,
     "num_detections": 785,
     "detections": [
@@ -11852,10 +11852,10 @@
   },
   "fused": {
     "modality": "Fused (Bayesian posterior)",
-    "estimated_lat": 27.363447234881765,
-    "estimated_lon": 52.90812681562088,
-    "cep_km": 6.870126822702179,
-    "euclidean_error_km": 6.256919043603009,
+    "estimated_lat": 27.35623724385159,
+    "estimated_lon": 52.89113242243195,
+    "cep_km": 7.847516246203759,
+    "euclidean_error_km": 4.692006047063959,
     "num_detections": 802,
     "detections": []
   },
@@ -11877,7 +11877,11 @@
     "n_points": 6181,
     "wc_lat": 27.354384816772576,
     "wc_lon": 52.886766137646994,
-    "wc_error_km": 4.33
+    "wc_error_km": 4.33,
+    "bootstrap_cep_km": 3.479369977811172,
+    "bootstrap_std_lat_km": 16.061194548998756,
+    "bootstrap_std_lon_km": 17.99486297375099,
+    "bootstrap_n_fits": 500
   },
   "ground_truth": {
     "lat": 27.3182,
