@@ -26,8 +26,8 @@ OUTPUT_DIR = Path("output/article_figures")
 
 GT_LAT, GT_LON = 27.3182, 52.8703
 BG = "#0a0a0a"
+GREEN = "#00ff88"
 RED = "#ff2a2a"
-RED_DIM = "#ff2a2a"
 WHITE = "#f0f0f0"
 WHITE_DIM = "#ffffff60"
 
@@ -59,17 +59,16 @@ def add_basemap(ax, extent):
 
 
 def draw_reticle(ax, lon, lat, r):
-    """Clean targeting reticle — two circles + crosshair."""
-    for radius, lw, alpha in [(r, 1.8, 0.9), (r * 0.5, 1.2, 0.6)]:
-        ax.add_patch(Circle((lon, lat), radius, fill=False,
-                            edgecolor=RED, linewidth=lw, alpha=alpha, zorder=20))
-    # Crosshair — four lines with center gap
-    gap = r * 0.2
-    arm = r * 1.4
+    """Small, simple targeting reticle — single circle + crosshair."""
+    ax.add_patch(Circle((lon, lat), r, fill=False,
+                        edgecolor=GREEN, linewidth=1.5, alpha=0.9, zorder=20))
+    # Crosshair — four short lines with center gap
+    gap = r * 0.3
+    arm = r * 1.3
     for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
         ax.plot([lon + dx * gap, lon + dx * arm],
                 [lat + dy * gap, lat + dy * arm],
-                color=RED, linewidth=1.2, alpha=0.7, zorder=20)
+                color=GREEN, linewidth=1.0, alpha=0.7, zorder=20)
 
 
 def main():
@@ -139,11 +138,11 @@ def main():
               edgecolors="none", rasterized=True, zorder=3)
 
     # ── Targeting reticle on ground truth ─────────────────────────────────
-    draw_reticle(ax, GT_LON, GT_LAT, 0.06)
+    draw_reticle(ax, GT_LON, GT_LAT, 0.035)
 
     # Ground truth center dot
-    ax.plot(GT_LON, GT_LAT, marker="+", color=RED, markersize=14,
-            markeredgewidth=2, zorder=22)
+    ax.plot(GT_LON, GT_LAT, marker="+", color=GREEN, markersize=10,
+            markeredgewidth=1.5, zorder=22)
 
     # ── CYGNSS estimate ──────────────────────────────────────────────────
     est_lat = data["cygnss"]["estimated_lat"]
@@ -171,7 +170,7 @@ def main():
     # Ground truth label
     ax.text(GT_LON + 0.08, GT_LAT - 0.04,
             f"Ground Truth\n{GT_LAT:.4f}°N, {GT_LON:.4f}°E",
-            fontsize=10, color=RED, fontweight="bold",
+            fontsize=10, color=GREEN, fontweight="bold",
             path_effects=text_fx, zorder=25)
 
     # CYGNSS estimate label
@@ -184,10 +183,10 @@ def main():
     for r_km in [25, 50]:
         r_deg = r_km / 111.0
         ax.add_patch(Circle((GT_LON, GT_LAT), r_deg, fill=False,
-                            edgecolor=WHITE, linewidth=0.4,
-                            linestyle=":", alpha=0.2, zorder=5))
+                            edgecolor=WHITE, linewidth=0.8,
+                            linestyle="--", alpha=0.45, zorder=5))
         ax.text(GT_LON, GT_LAT + r_deg + 0.01,
-                f"{r_km} km", fontsize=7, color=WHITE, alpha=0.3,
+                f"{r_km} km", fontsize=8, color=WHITE, alpha=0.5,
                 ha="center", path_effects=text_fx, zorder=6)
 
     # ── Title — top center ───────────────────────────────────────────────
