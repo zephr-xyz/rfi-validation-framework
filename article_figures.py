@@ -349,11 +349,566 @@ def figure1_hero(data):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# FIGURE 2 — Jammer ON vs OFF: The Smoking Gun
+# ═══════════════════════════════════════════════════════════════════════════
+
+def figure2_on_vs_off(data):
+    """Side-by-side: 785 detections (ON) vs 0 detections (OFF)."""
+    setup_dark_style()
+    fig, (ax_on, ax_off) = plt.subplots(1, 2, figsize=(16, 8))
+
+    cygnss_dets = data["cygnss"]["detections"]
+    c_lats = np.array([d["lat"] for d in cygnss_dets])
+    c_lons = np.array([d["lon"] for d in cygnss_dets])
+    c_ints = np.array([d["intensity"] for d in cygnss_dets])
+
+    cygnss_cmap = LinearSegmentedColormap.from_list(
+        "cygnss_heat", ["#f59f00", "#e8590c", "#e03131"], N=256
+    )
+    c_ints_log = np.log1p(c_ints)
+    norm = Normalize(vmin=np.percentile(c_ints_log, 5),
+                     vmax=np.percentile(c_ints_log, 95))
+
+    extent = [50.5, 55.2, 25.3, 29.3]
+    aspect = 1.0 / np.cos(np.radians(27.3))
+
+    # ON panel
+    ax_on.set_title("Jammer ON  —  January 8 & 20, 2026", fontsize=13,
+                    fontweight="bold", color="#e03131")
+    sc = ax_on.scatter(c_lons, c_lats, c=c_ints_log, cmap=cygnss_cmap, norm=norm,
+                       s=25, alpha=0.6, edgecolors="none", rasterized=True, zorder=3)
+    ax_on.plot(GT_LON, GT_LAT, marker="*", color=GT_COLOR, markersize=22,
+              markeredgecolor="white", markeredgewidth=1.5, zorder=10)
+
+    text_fx = [pe.withStroke(linewidth=3, foreground=BG_COLOR)]
+    ax_on.text(0.03, 0.97, f"785 detections", transform=ax_on.transAxes,
+              fontsize=16, fontweight="bold", color="#e03131", va="top",
+              path_effects=text_fx)
+    ax_on.set_xlim(extent[0], extent[1])
+    ax_on.set_ylim(extent[2], extent[3])
+    ax_on.set_aspect(aspect)
+    ax_on.set_xlabel("Longitude (°E)")
+    ax_on.set_ylabel("Latitude (°N)")
+    ax_on.grid(True, alpha=0.3)
+
+    # OFF panel
+    ax_off.set_title("Jammer OFF  —  December 15 & 27, 2025", fontsize=13,
+                     fontweight="bold", color=FUSED_COLOR)
+    ax_off.plot(GT_LON, GT_LAT, marker="*", color=GT_COLOR, markersize=22,
+               markeredgecolor="white", markeredgewidth=1.5, zorder=10)
+    ax_off.text(0.03, 0.97, "0 detections", transform=ax_off.transAxes,
+               fontsize=16, fontweight="bold", color=FUSED_COLOR, va="top",
+               path_effects=text_fx)
+    ax_off.text(0.5, 0.5, "CLEAN", transform=ax_off.transAxes,
+               fontsize=48, fontweight="bold", color="#2ea04330",
+               ha="center", va="center", zorder=1)
+    ax_off.set_xlim(extent[0], extent[1])
+    ax_off.set_ylim(extent[2], extent[3])
+    ax_off.set_aspect(aspect)
+    ax_off.set_xlabel("Longitude (°E)")
+    ax_off.set_ylabel("Latitude (°N)")
+    ax_off.grid(True, alpha=0.3)
+
+    # Shared colorbar
+    cbar = fig.colorbar(sc, ax=[ax_on, ax_off], shrink=0.7, pad=0.02)
+    cbar.set_label("Signal Anomaly (log)", color=TEXT_DIM)
+    cbar.ax.yaxis.set_tick_params(color=TEXT_DIM)
+    plt.setp(plt.getp(cbar.ax, "yticklabels"), color=TEXT_DIM)
+
+    fig.suptitle("The Smoking Gun: CYGNSS Jammer Detection Baseline Test",
+                 fontsize=15, fontweight="bold", y=0.98)
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    out = OUTPUT_DIR / "fig2_on_vs_off.png"
+    fig.savefig(out, dpi=300, bbox_inches="tight", pad_inches=0.3)
+    plt.close(fig)
+    print(f"Saved: {out} ({out.stat().st_size / 1e6:.1f} MB)")
+    return out
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FIGURE 3 — CYGNSS 1/r² Gradient
+# ═══════════════════════════════════════════════════════════════════════════
+
+def figure3_inverse_distance(data):
+    """Intensity vs distance with fitted 1/r² curve."""
+    setup_dark_style()
+    fig, ax = plt.subplots(figsize=(10, 7))
+
+    cygnss_dets = data["cygnss"]["detections"]
+    dists = np.array([d["metadata"]["distance_km"] for d in cygnss_dets])
+    ints = np.array([d["intensity"] for d in cygnss_dets])
+
+    # Color by detection method
+    method_colors = {
+        "precomp_noise": ("#f59f00", "DDM Noise Floor"),
+        "nbrcs_drop": ("#e03131", "NBRCS Drop"),
+        "spatial_noise_grid": ("#ff922b", "Spatial Noise Grid"),
+        "spatial_hole": ("#ffd43b", "SNR Hole"),
+    }
+
+    for method, (color, label) in method_colors.items():
+        mask = np.array([d["metadata"].get("method") == method for d in cygnss_dets])
+        if mask.any():
+            ax.scatter(dists[mask], ints[mask], c=color, s=20, alpha=0.5,
+                      label=f"{label} ({mask.sum()})", edgecolors="none",
+                      rasterized=True, zorder=3)
+
+    # Fitted 1/r² curve
+    fit = data.get("cygnss_inv_dist_fit", {})
+    amp = fit.get("amplitude", 248.68)
+    r_fit = np.linspace(1, 200, 500)
+    i_fit = amp / (r_fit ** 2)
+
+    ax.plot(r_fit, i_fit, color="white", linewidth=2.5, zorder=5,
+            label=f"1/r² fit (A={amp:.0f})")
+    ax.plot(r_fit, i_fit, color=CYGNSS_COLOR, linewidth=1.5, linestyle="--",
+            zorder=6)
+
+    # Mark estimated jammer distance = 0
+    ax.axvline(x=4.33, color=GT_COLOR, linewidth=1.5, linestyle=":",
+              alpha=0.8, zorder=4, label="Est. jammer (4.33 km)")
+
+    ax.set_xlabel("Distance from Estimated Jammer (km)", fontsize=13)
+    ax.set_ylabel("Signal Anomaly Intensity", fontsize=13)
+    ax.set_title("CYGNSS 1/r² Inverse-Distance Jammer Model",
+                fontsize=15, fontweight="bold")
+    ax.set_xlim(0, 210)
+    ax.set_ylim(0, np.percentile(ints, 99.5) * 1.1)
+    ax.legend(fontsize=9, loc="upper right")
+    ax.grid(True, alpha=0.3)
+
+    # Annotation
+    text_fx = [pe.withStroke(linewidth=3, foreground=BG_COLOR)]
+    ax.annotate("Jammer signature:\nintensity ∝ 1/r²",
+               xy=(15, amp / 225), xytext=(60, amp / 4),
+               fontsize=11, color=TEXT_COLOR, fontweight="bold",
+               path_effects=text_fx,
+               arrowprops=dict(arrowstyle="->", color=CYGNSS_COLOR, lw=2),
+               zorder=7)
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    out = OUTPUT_DIR / "fig3_inverse_distance.png"
+    fig.savefig(out, dpi=300, bbox_inches="tight", pad_inches=0.3)
+    plt.close(fig)
+    print(f"Saved: {out} ({out.stat().st_size / 1e6:.1f} MB)")
+    return out
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FIGURE 4 — NISAR Streak Anatomy
+# ═══════════════════════════════════════════════════════════════════════════
+
+def figure4_nisar_streaks(data):
+    """NISAR detections with streak bearings and intersection geometry."""
+    setup_dark_style()
+    fig, ax = plt.subplots(figsize=(10, 10))
+
+    nisar_dets = data["nisar"]["detections"]
+    nisar_est = (data["nisar"]["estimated_lat"], data["nisar"]["estimated_lon"])
+
+    n_lats = np.array([d["lat"] for d in nisar_dets])
+    n_lons = np.array([d["lon"] for d in nisar_dets])
+    n_ints = np.array([d["intensity"] for d in nisar_dets])
+
+    # Separate by date
+    jan8_mask = np.array(["20260108" in d["timestamp"] for d in nisar_dets])
+    jan20_mask = np.array(["20260120" in d["timestamp"] for d in nisar_dets])
+
+    # Plot detections sized by intensity
+    for mask, color, marker, label in [
+        (jan8_mask, "#339af0", "D", "Jan 8 Pass (Track 157)"),
+        (jan20_mask, "#74c0fc", "s", "Jan 20 Pass (Track 157)"),
+    ]:
+        if mask.any():
+            sizes = 60 + 400 * (n_ints[mask] / n_ints.max())
+            ax.scatter(n_lons[mask], n_lats[mask], c=color, s=sizes, alpha=0.85,
+                      edgecolors="white", linewidths=1, marker=marker, zorder=6,
+                      label=label)
+
+    # Bearing lines — extend beyond cluster to show intersection
+    for mask, color in [(jan8_mask, "#339af080"), (jan20_mask, "#74c0fc80")]:
+        if mask.any():
+            clat, clon = np.mean(n_lats[mask]), np.mean(n_lons[mask])
+            # Direction from cluster center to intersection
+            dlat = nisar_est[0] - clat
+            dlon = nisar_est[1] - clon
+            length = np.sqrt(dlat**2 + dlon**2)
+            if length > 0:
+                # Extend line in both directions
+                ext = 0.15  # degrees
+                ax.plot([clon - dlon/length*ext, clon + dlon/length*(ext+length)],
+                       [clat - dlat/length*ext, clat + dlat/length*(ext+length)],
+                       color=color, linewidth=2.5, linestyle="--", zorder=4)
+
+    # Intersection point
+    ax.plot(nisar_est[1], nisar_est[0], marker="X", color=NISAR_COLOR,
+            markersize=18, markeredgecolor="white", markeredgewidth=2, zorder=9)
+
+    # CEP circle
+    nisar_cep_deg = data["nisar"]["cep_km"] / 111.0
+    cep = Circle((nisar_est[1], nisar_est[0]), nisar_cep_deg,
+                  fill=True, facecolor="#339af015", edgecolor=NISAR_COLOR,
+                  linewidth=2, linestyle="-", zorder=2)
+    ax.add_patch(cep)
+
+    # Ground truth
+    ax.plot(GT_LON, GT_LAT, marker="*", color=GT_COLOR, markersize=24,
+            markeredgecolor="white", markeredgewidth=2, zorder=11)
+
+    text_fx = [pe.withStroke(linewidth=3, foreground=BG_COLOR)]
+    ax.annotate("Ground Truth", (GT_LON, GT_LAT),
+               textcoords="offset points", xytext=(-70, -25),
+               fontsize=11, fontweight="bold", color=GT_COLOR,
+               path_effects=text_fx, zorder=12,
+               arrowprops=dict(arrowstyle="->", color=GT_COLOR, lw=1.5))
+
+    ax.annotate(f"Bearing Intersection\n6.26 km error\nCEP 6.88 km",
+               (nisar_est[1], nisar_est[0]),
+               textcoords="offset points", xytext=(20, 25),
+               fontsize=10, fontweight="bold", color=NISAR_COLOR,
+               path_effects=text_fx, zorder=12,
+               arrowprops=dict(arrowstyle="->", color=NISAR_COLOR, lw=1.5))
+
+    # Distance annotation line between GT and estimate
+    ax.plot([GT_LON, nisar_est[1]], [GT_LAT, nisar_est[0]],
+            color=TEXT_DIM, linewidth=1, linestyle=":", alpha=0.8, zorder=5)
+    mid_lon = (GT_LON + nisar_est[1]) / 2
+    mid_lat = (GT_LAT + nisar_est[0]) / 2
+    ax.text(mid_lon - 0.02, mid_lat, "6.26 km", fontsize=9, color=TEXT_DIM,
+            rotation=25, path_effects=text_fx, zorder=10)
+
+    # Zoom to NISAR region
+    pad = 0.12
+    all_lons = list(n_lons) + [GT_LON, nisar_est[1]]
+    all_lats = list(n_lats) + [GT_LAT, nisar_est[0]]
+    ax.set_xlim(min(all_lons) - pad, max(all_lons) + pad)
+    ax.set_ylim(min(all_lats) - pad, max(all_lats) + pad)
+    ax.set_aspect(1.0 / np.cos(np.radians(GT_LAT)))
+
+    ax.set_xlabel("Longitude (°E)", fontsize=13)
+    ax.set_ylabel("Latitude (°N)", fontsize=13)
+    ax.set_title("NISAR L-band SAR: RFI Streak Bearing Intersection",
+                fontsize=15, fontweight="bold")
+    ax.legend(fontsize=10, loc="upper left")
+    ax.grid(True, alpha=0.3)
+
+    # Info box
+    info = (f"Sensor: NISAR L-band GCOV (1.257 GHz)\n"
+            f"Method: λ₁ eigenvalue decomposition\n"
+            f"Bearings: 308.1° + 316.2° → intersection\n"
+            f"17 detections across 2 ascending passes")
+    ax.text(0.97, 0.03, info, transform=ax.transAxes, fontsize=9,
+            color=TEXT_DIM, ha="right", va="bottom",
+            bbox=dict(boxstyle="round,pad=0.5", facecolor=BG_LIGHT,
+                      edgecolor=GRID_COLOR, alpha=0.9))
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    out = OUTPUT_DIR / "fig4_nisar_streaks.png"
+    fig.savefig(out, dpi=300, bbox_inches="tight", pad_inches=0.3)
+    plt.close(fig)
+    print(f"Saved: {out} ({out.stat().st_size / 1e6:.1f} MB)")
+    return out
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FIGURE 5 — Three-Column Method Comparison
+# ═══════════════════════════════════════════════════════════════════════════
+
+def figure5_method_comparison(data):
+    """Three-column comparison: CYGNSS vs NISAR vs Fused with metrics."""
+    setup_dark_style()
+    fig, axes = plt.subplots(1, 3, figsize=(16, 7))
+
+    methods = [
+        ("CYGNSS\n(GNSS-R)", data["cygnss"], CYGNSS_COLOR, "^"),
+        ("NISAR\n(L-band SAR)", data["nisar"], NISAR_COLOR, "v"),
+        ("Fused\n(Bayesian)", data["fused"], FUSED_COLOR, "*"),
+    ]
+
+    for ax, (label, result, color, marker) in zip(axes, methods):
+        est_lat = result["estimated_lat"]
+        est_lon = result["estimated_lon"]
+        err = result["euclidean_error_km"]
+        cep = result["cep_km"]
+        n_det = result["num_detections"]
+
+        # Plot detections if available
+        if result.get("detections"):
+            dets = result["detections"]
+            d_lats = [d["lat"] for d in dets]
+            d_lons = [d["lon"] for d in dets]
+            d_ints = [d["intensity"] for d in dets]
+            ax.scatter(d_lons, d_lats, c=color, s=15, alpha=0.4,
+                      edgecolors="none", rasterized=True, zorder=3)
+
+        # Ground truth
+        ax.plot(GT_LON, GT_LAT, marker="*", color=GT_COLOR, markersize=18,
+               markeredgecolor="white", markeredgewidth=1.5, zorder=10)
+
+        # Estimate
+        ax.plot(est_lon, est_lat, marker=marker, color=color, markersize=16,
+               markeredgecolor="white", markeredgewidth=1.5, zorder=9)
+
+        # CEP circle (cap at reasonable display size)
+        cep_deg = min(cep, 20) / 111.0
+        cep_circle = Circle((est_lon, est_lat), cep_deg,
+                            fill=True, facecolor=color + "15",
+                            edgecolor=color, linewidth=1.5, zorder=2)
+        ax.add_patch(cep_circle)
+
+        # Error line
+        ax.plot([GT_LON, est_lon], [GT_LAT, est_lat],
+               color=color, linewidth=1.5, linestyle=":", alpha=0.8, zorder=5)
+
+        # Zoom to relevant area
+        pad = 0.15
+        ax.set_xlim(GT_LON - pad, max(est_lon, GT_LON) + pad)
+        ax.set_ylim(GT_LAT - pad, max(est_lat, GT_LAT) + pad)
+        ax.set_aspect(1.0 / np.cos(np.radians(GT_LAT)))
+        ax.grid(True, alpha=0.3)
+
+        # Title with metrics
+        ax.set_title(label, fontsize=14, fontweight="bold", color=color)
+
+        # Metrics box
+        cep_str = f"{cep:.1f}" if cep < 200 else f"{cep:.0f}"
+        metrics = (f"Error: {err:.2f} km\n"
+                   f"CEP: {cep_str} km\n"
+                   f"Detections: {n_det}")
+        ax.text(0.97, 0.03, metrics, transform=ax.transAxes, fontsize=11,
+               color=color, ha="right", va="bottom", fontweight="bold",
+               bbox=dict(boxstyle="round,pad=0.4", facecolor=BG_LIGHT,
+                         edgecolor=color, alpha=0.9, linewidth=1.5))
+
+    axes[0].set_ylabel("Latitude (°N)")
+    for ax in axes:
+        ax.set_xlabel("Longitude (°E)")
+
+    fig.suptitle("Method Comparison: Which Satellite Wins?",
+                fontsize=16, fontweight="bold", y=0.98)
+    fig.text(0.5, 0.01,
+             "Gold star = ground truth  |  Colored marker = estimate  |  "
+             "Circle = CEP (50% confidence radius)",
+             ha="center", fontsize=10, color=TEXT_DIM, style="italic")
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    out = OUTPUT_DIR / "fig5_method_comparison.png"
+    fig.savefig(out, dpi=300, bbox_inches="tight", pad_inches=0.3)
+    plt.close(fig)
+    print(f"Saved: {out} ({out.stat().st_size / 1e6:.1f} MB)")
+    return out
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FIGURE 6 — Bayesian Fusion Mechanics
+# ═══════════════════════════════════════════════════════════════════════════
+
+def figure6_bayesian_fusion(data):
+    """Overlapping 2D Gaussians showing precision-weighted fusion."""
+    setup_dark_style()
+    fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+
+    cygnss_est = np.array([data["cygnss"]["estimated_lon"], data["cygnss"]["estimated_lat"]])
+    nisar_est = np.array([data["nisar"]["estimated_lon"], data["nisar"]["estimated_lat"]])
+    fused_est = np.array([data["fused"]["estimated_lon"], data["fused"]["estimated_lat"]])
+
+    cygnss_sigma = data["cygnss"]["cep_km"] / 1.1774 / 111.0  # degrees
+    nisar_sigma = data["nisar"]["cep_km"] / 1.1774 / 111.0
+
+    # Grid for Gaussian contours — centered on NISAR (tighter)
+    center = nisar_est
+    extent = 0.25  # degrees
+    x = np.linspace(center[0] - extent, center[0] + extent, 300)
+    y = np.linspace(center[1] - extent, center[1] + extent, 300)
+    X, Y = np.meshgrid(x, y)
+
+    def gauss2d(X, Y, cx, cy, sigma):
+        return np.exp(-((X - cx)**2 + (Y - cy)**2) / (2 * sigma**2))
+
+    Z_cygnss = gauss2d(X, Y, cygnss_est[0], cygnss_est[1], cygnss_sigma)
+    Z_nisar = gauss2d(X, Y, nisar_est[0], nisar_est[1], nisar_sigma)
+
+    # Bayesian product (multiply, renormalize)
+    Z_fused = Z_cygnss * Z_nisar
+    Z_fused_max = Z_fused.max()
+    if Z_fused_max > 0:
+        Z_fused = Z_fused / Z_fused_max
+
+    panels = [
+        (axes[0], Z_cygnss, "CYGNSS Likelihood\nσ = 108 km", CYGNSS_COLOR, cygnss_est),
+        (axes[1], Z_nisar, "NISAR Likelihood\nσ = 5.8 km", NISAR_COLOR, nisar_est),
+        (axes[2], Z_fused, "Bayesian Posterior\n(Product)", FUSED_COLOR, fused_est),
+    ]
+
+    for ax, Z, title, color, est in panels:
+        # Contour plot
+        levels = [0.1, 0.3, 0.5, 0.7, 0.9]
+        cs = ax.contourf(X, Y, Z, levels=20, cmap=LinearSegmentedColormap.from_list(
+            "custom", [BG_LIGHT, color], N=256), zorder=2)
+        ax.contour(X, Y, Z, levels=levels, colors="white", linewidths=0.5,
+                  alpha=0.5, zorder=3)
+
+        # Ground truth
+        ax.plot(GT_LON, GT_LAT, marker="*", color=GT_COLOR, markersize=16,
+               markeredgecolor="white", markeredgewidth=1.5, zorder=10)
+
+        # Estimate
+        ax.plot(est[0], est[1], marker="+", color="white",
+               markersize=14, markeredgewidth=2, zorder=9)
+
+        ax.set_title(title, fontsize=12, fontweight="bold", color=color)
+        ax.set_xlim(center[0] - extent, center[0] + extent)
+        ax.set_ylim(center[1] - extent, center[1] + extent)
+        ax.set_aspect(1.0 / np.cos(np.radians(GT_LAT)))
+        ax.grid(True, alpha=0.2)
+
+    axes[0].set_ylabel("Latitude (°N)")
+    for ax in axes:
+        ax.set_xlabel("Longitude (°E)")
+
+    fig.suptitle("Bayesian Sensor Fusion: Precision-Weighted Gaussian Product",
+                fontsize=15, fontweight="bold", y=1.02)
+
+    # Equation annotation
+    fig.text(0.5, -0.02,
+             "P(jammer | CYGNSS, NISAR) ∝ P(CYGNSS | jammer) × P(NISAR | jammer)    |    "
+             "σ_NISAR/σ_CYGNSS ≈ 1:18 → precision ratio 343:1 → posterior ≈ NISAR",
+             ha="center", fontsize=10, color=TEXT_DIM, style="italic")
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    out = OUTPUT_DIR / "fig6_bayesian_fusion.png"
+    fig.savefig(out, dpi=300, bbox_inches="tight", pad_inches=0.3)
+    plt.close(fig)
+    print(f"Saved: {out} ({out.stat().st_size / 1e6:.1f} MB)")
+    return out
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FIGURE 7 — Accuracy & Confidence Summary Dashboard
+# ═══════════════════════════════════════════════════════════════════════════
+
+def figure7_dashboard(data):
+    """Combined metrics dashboard: bar chart + radar + key takeaways."""
+    setup_dark_style()
+    fig = plt.figure(figsize=(14, 8))
+
+    # Layout: left = bar chart, right = summary table
+    ax_bar = fig.add_axes([0.08, 0.15, 0.42, 0.72])
+    ax_table = fig.add_axes([0.56, 0.15, 0.40, 0.72])
+    ax_table.axis("off")
+
+    modalities = ["CYGNSS", "NISAR", "Fused"]
+    errors = [data["cygnss"]["euclidean_error_km"],
+              data["nisar"]["euclidean_error_km"],
+              data["fused"]["euclidean_error_km"]]
+    ceps = [data["cygnss"]["cep_km"],
+            data["nisar"]["cep_km"],
+            data["fused"]["cep_km"]]
+    n_dets = [data["cygnss"]["num_detections"],
+              data["nisar"]["num_detections"],
+              data["fused"]["num_detections"]]
+    colors = [CYGNSS_COLOR, NISAR_COLOR, FUSED_COLOR]
+
+    text_fx = [pe.withStroke(linewidth=2, foreground=BG_COLOR)]
+
+    # Bar chart — error and CEP side by side (CEP capped for display)
+    x = np.arange(len(modalities))
+    width = 0.35
+    ceps_display = [min(c, 15) for c in ceps]  # cap for visual
+
+    bars_err = ax_bar.bar(x - width/2, errors, width, color=colors, alpha=0.9,
+                          edgecolor="white", linewidth=0.5, label="Euclidean Error")
+    bars_cep = ax_bar.bar(x + width/2, ceps_display, width, color=colors, alpha=0.4,
+                          edgecolor="white", linewidth=0.5, hatch="//",
+                          label="CEP (50%)")
+
+    # Value labels
+    for bar, val in zip(bars_err, errors):
+        ax_bar.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.2,
+                   f"{val:.1f}", ha="center", fontsize=11, fontweight="bold",
+                   color=TEXT_COLOR, path_effects=text_fx)
+    for bar, val, orig in zip(bars_cep, ceps_display, ceps):
+        label = f"{orig:.1f}" if orig < 20 else f"{orig:.0f}"
+        ax_bar.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.2,
+                   label, ha="center", fontsize=10, color=TEXT_DIM)
+
+    ax_bar.set_xticks(x)
+    ax_bar.set_xticklabels(modalities, fontsize=12, fontweight="bold")
+    ax_bar.set_ylabel("Distance (km)", fontsize=12)
+    ax_bar.set_title("Localization Accuracy", fontsize=14, fontweight="bold")
+    ax_bar.legend(fontsize=10, loc="upper right")
+    ax_bar.grid(True, alpha=0.3, axis="y")
+    ax_bar.set_ylim(0, 18)
+
+    # Note about CYGNSS CEP
+    ax_bar.annotate("CEP: 127 km\n(off scale)", xy=(0 + width/2, 15),
+                   fontsize=9, color=TEXT_DIM, ha="center", va="bottom",
+                   style="italic")
+
+    # Summary table
+    rows = [
+        ["Metric", "CYGNSS", "NISAR", "Fused"],
+        ["Error (km)", "4.33", "6.26", "4.91"],
+        ["CEP (km)", "127.4", "6.88", "6.87"],
+        ["Detections", "785", "17", "802"],
+        ["Sensor", "GNSS-R", "L-band SAR", "Both"],
+        ["Frequency", "L1/L2 GPS", "1.257 GHz", "—"],
+        ["Method", "1/r² fit", "Bearing △", "Bayesian"],
+        ["Best use", "Wide area", "Precision", "Combined"],
+    ]
+
+    header_colors = [TEXT_COLOR, CYGNSS_COLOR, NISAR_COLOR, FUSED_COLOR]
+
+    y_start = 0.95
+    for i, row in enumerate(rows):
+        y = y_start - i * 0.11
+        for j, cell in enumerate(row):
+            x_pos = 0.0 + j * 0.25
+            weight = "bold" if i == 0 else "normal"
+            color = header_colors[j] if i == 0 else TEXT_COLOR
+            fontsize = 11 if i == 0 else 10
+            ax_table.text(x_pos, y, cell, fontsize=fontsize, fontweight=weight,
+                         color=color, transform=ax_table.transAxes, va="center")
+
+        # Separator line after header
+        if i == 0:
+            ax_table.axhline(y=y - 0.04, xmin=0, xmax=1, color=GRID_COLOR,
+                            linewidth=1)
+
+    # Key insight box
+    insight = ("KEY INSIGHT: CYGNSS achieves the lowest error (4.33 km) but its\n"
+               "127 km CEP means this accuracy cannot be verified without ground\n"
+               "truth. NISAR's 6.26 km error with 6.88 km CEP is operationally\n"
+               "trustworthy. Bayesian fusion correctly weights toward NISAR.")
+    ax_table.text(0.0, -0.05, insight, transform=ax_table.transAxes,
+                 fontsize=9, color=TEXT_DIM, va="top",
+                 bbox=dict(boxstyle="round,pad=0.5", facecolor=BG_LIGHT,
+                          edgecolor=GT_COLOR, alpha=0.9, linewidth=1))
+
+    fig.suptitle("GPS Jammer Localization: Results Summary",
+                fontsize=16, fontweight="bold", y=0.97)
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    out = OUTPUT_DIR / "fig7_dashboard.png"
+    fig.savefig(out, dpi=300, bbox_inches="tight", pad_inches=0.3)
+    plt.close(fig)
+    print(f"Saved: {out} ({out.stat().st_size / 1e6:.1f} MB)")
+    return out
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Main
 # ═══════════════════════════════════════════════════════════════════════════
 
 FIGURES = {
     1: ("Hero: Converging on the Jammer", figure1_hero),
+    2: ("ON vs OFF: The Smoking Gun", figure2_on_vs_off),
+    3: ("CYGNSS 1/r² Inverse-Distance Model", figure3_inverse_distance),
+    4: ("NISAR Streak Bearing Intersection", figure4_nisar_streaks),
+    5: ("Three-Column Method Comparison", figure5_method_comparison),
+    6: ("Bayesian Fusion Mechanics", figure6_bayesian_fusion),
+    7: ("Results Dashboard", figure7_dashboard),
 }
 
 
