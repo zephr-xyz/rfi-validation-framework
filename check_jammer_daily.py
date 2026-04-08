@@ -180,7 +180,7 @@ def check_date(date_str):
 
 def main():
     import earthaccess
-    earthaccess.login(strategy="environment")
+    earthaccess.login(strategy="netrc")
 
     if len(sys.argv) < 2:
         print("Usage: python3 check_jammer_daily.py START_DATE [END_DATE]")
