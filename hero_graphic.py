@@ -49,7 +49,7 @@ def add_basemap(ax, extent):
         inv = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
         e0, e2 = inv.transform(ext_m[0], ext_m[2])
         e1, e3 = inv.transform(ext_m[1], ext_m[3])
-        img_dark = (img.astype(float) * 0.4).astype(np.uint8)
+        img_dark = (img.astype(float) * 0.65).astype(np.uint8)
         ax.imshow(img_dark, extent=[e0, e1, e2, e3],
                   aspect="auto", zorder=0, interpolation="bilinear")
         return True
