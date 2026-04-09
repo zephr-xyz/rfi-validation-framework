@@ -67,7 +67,10 @@ def add_basemap(ax, extent):
 
 def main():
     data = load_data()
-    jammers = data["jammers"]
+    # Use filtered jammers if available, otherwise all
+    jammers = data.get("jammers_filtered", data["jammers"])
+    n_total = data.get("n_jammers", len(data["jammers"]))
+    n_filtered = len(jammers)
 
     plt.rcParams.update({
         "figure.facecolor": BG,
@@ -185,7 +188,7 @@ def main():
     cbar.ax.tick_params(colors=WHITE, labelsize=7)
 
     # ── Title ────────────────────────────────────────────────────────────
-    ax.text(0.5, 0.97, "109 GPS Jammers Detected Across Iran",
+    ax.text(0.5, 0.97, f"{n_filtered} High-Confidence GPS Jammers Detected Across Iran",
             transform=ax.transAxes, fontsize=20, color=WHITE,
             fontweight="bold", ha="center", va="top",
             path_effects=text_fx, zorder=30)
@@ -199,8 +202,8 @@ def main():
     stats_text = (
         f"Conflict measurements: {data['n_conflict_measurements']:,}\n"
         f"Baseline measurements: {data['n_baseline_measurements']:,}\n"
-        f"Clusters found: {data['n_clusters']}\n"
-        f"Jammers localized: {data['n_jammers']}\n"
+        f"Raw detections: {n_total}  |  Filtered: {n_filtered}\n"
+        f"Filters: CEP < 15 km, >= 20 pts, z > 2.8\n"
         f"Circle size = signal amplitude\n"
         f"Color = noise elevation z-score"
     )
