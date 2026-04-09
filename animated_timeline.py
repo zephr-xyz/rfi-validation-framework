@@ -21,13 +21,11 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
 from matplotlib.patches import Circle, FancyBboxPatch
-from matplotlib.colors import LinearSegmentedColormap, Normalize
-from scipy.ndimage import gaussian_filter
 from PIL import Image
+from scipy.ndimage import gaussian_filter
 
 RESULTS_JSON = Path("output/comparison_results.json")
 OUTPUT_DIR = Path("output/article_figures")
-INSET_IMG = Path("assets/inset_jammer_site.png")
 
 GT_LAT, GT_LON = 27.3182, 52.8703
 BG = "#0a0a0a"
@@ -87,8 +85,8 @@ def get_basemap(extent):
         return None, None
 
 
-def build_base_heatmap(data, extent):
-    """Build the January heatmap grid (unscaled)."""
+def get_detection_points(data, extent):
+    """Extract January detection points filtered to view extent."""
     cygnss_dets = data["cygnss"]["detections"]
     c_lats = np.array([d["lat"] for d in cygnss_dets])
     c_lons = np.array([d["lon"] for d in cygnss_dets])
@@ -96,18 +94,49 @@ def build_base_heatmap(data, extent):
 
     in_view = ((c_lons > extent[0] - 0.3) & (c_lons < extent[1] + 0.3) &
                (c_lats > extent[2] - 0.3) & (c_lats < extent[3] + 0.3))
-    c_lats, c_lons, c_ints = c_lats[in_view], c_lons[in_view], c_ints[in_view]
+    return c_lats[in_view], c_lons[in_view], c_ints[in_view]
 
+
+def build_heatmap_for_frame(c_lats, c_lons, c_ints, extent, n_detections,
+                             elev_pct, seed):
+    """Build a unique heatmap for each frame by resampling detections.
+
+    Each day has different satellite passes, so the spatial pattern of
+    detections differs. We simulate this by:
+    1. Resampling N detections (with replacement) from the January pool
+    2. Adding spatial jitter to simulate different specular point locations
+    3. Scaling intensity by the day's noise elevation ratio
+    """
     nx, ny = 250, 200
     x_edges = np.linspace(extent[0] - 0.3, extent[1] + 0.3, nx + 1)
     y_edges = np.linspace(extent[2] - 0.3, extent[3] + 0.3, ny + 1)
-    H, _, _ = np.histogram2d(c_lons, c_lats, bins=[x_edges, y_edges],
-                              weights=np.log1p(c_ints))
+    h_extent = [x_edges[0], x_edges[-1], y_edges[0], y_edges[-1]]
+
+    if n_detections == 0 or elev_pct <= 0:
+        return np.zeros((ny, nx)), h_extent
+
+    rng = np.random.RandomState(seed)
+
+    # Sample detection count, weighted toward high-intensity (near-jammer) points
+    weights = c_ints / c_ints.sum()
+    n_sample = min(n_detections, len(c_lats) * 3)
+    idx = rng.choice(len(c_lats), size=n_sample, replace=True, p=weights)
+
+    # Jitter positions — ~0.04° (~4 km) to simulate different orbit tracks
+    jitter_scale = 0.04
+    s_lats = c_lats[idx] + rng.normal(0, jitter_scale, n_sample)
+    s_lons = c_lons[idx] + rng.normal(0, jitter_scale, n_sample)
+
+    # Scale intensities by elevation ratio
+    intensity_scale = elev_pct / JAN_MEAN_ELEV
+    s_ints = c_ints[idx] * intensity_scale
+
+    H, _, _ = np.histogram2d(s_lons, s_lats, bins=[x_edges, y_edges],
+                              weights=np.log1p(s_ints))
     H = H.T
     H_smooth = gaussian_filter(H, sigma=4)
 
-    h_extent = [x_edges[0], x_edges[-1], y_edges[0], y_edges[-1]]
-    return H_smooth, h_extent, c_lons, c_lats
+    return H_smooth, h_extent
 
 
 def draw_reticle(ax, lon, lat, r):
@@ -122,9 +151,9 @@ def draw_reticle(ax, lon, lat, r):
                 color=GREEN, linewidth=1.0, alpha=0.7, zorder=20)
 
 
-def render_frame(fig, ax, basemap_img, basemap_ext, H_base, h_extent,
-                 heatmap_cmap, norm_base, date, elev_pct, detections,
-                 near_50, label, inset_img):
+def render_frame(fig, ax, basemap_img, basemap_ext, H_frame, h_extent,
+                 vmax_ref, date, elev_pct, detections,
+                 near_50, label):
     """Render a single animation frame."""
     ax.clear()
     ax.set_facecolor(BG)
@@ -142,22 +171,26 @@ def render_frame(fig, ax, basemap_img, basemap_ext, H_base, h_extent,
         ax.imshow(basemap_img, extent=basemap_ext,
                   aspect="auto", zorder=0, interpolation="bilinear")
 
-    # Heatmap — scaled by elevation relative to January
-    if elev_pct > 0:
-        scale = min(elev_pct / JAN_MEAN_ELEV, 6.0)  # cap at 6x
-        H_scaled = H_base * scale
-        base_vmax = np.percentile(H_base[H_base > 0], 95) if (H_base > 0).any() else 1
-        vmax = base_vmax * max(scale * 0.5, 1.0)
-        # Build RGBA manually: red glow with alpha from intensity
-        H_norm = np.clip(H_scaled / vmax, 0, 1)
+    # Heatmap — unique per frame, built from resampled detections
+    if elev_pct > 0 and H_frame is not None and (H_frame > 0).any():
+        H_norm = np.clip(H_frame / vmax_ref, 0, 1)
         rgba = np.zeros((*H_norm.shape, 4))
-        # RGB: transition from pure red to warm orange-white at peak
-        rgba[..., 0] = 1.0  # R always 1
-        rgba[..., 1] = H_norm * 0.5  # G ramps up
-        rgba[..., 2] = H_norm * 0.3  # B ramps slightly
-        # Alpha: zero below threshold, steep ramp on hotspots only
-        alpha = np.where(H_norm > 0.35, (H_norm - 0.35) / 0.65, 0)
-        rgba[..., 3] = np.clip(alpha ** 2.0 * 0.5, 0, 0.5)  # max 50% opacity on peaks
+        rgba[..., 0] = 1.0
+        rgba[..., 1] = H_norm * 0.5
+        rgba[..., 2] = H_norm * 0.3
+        alpha = np.where(H_norm > 0.25, (H_norm - 0.25) / 0.75, 0)
+        rgba[..., 3] = np.clip(alpha ** 1.8 * 0.45, 0, 0.45)
+        # Radial fade — zero out alpha far from jammer to keep edges clean
+        ny, nx = H_norm.shape
+        yy = np.linspace(h_extent[2], h_extent[3], ny)
+        xx = np.linspace(h_extent[0], h_extent[1], nx)
+        XX, YY = np.meshgrid(xx, yy)
+        cos_lat = np.cos(np.radians(GT_LAT))
+        dist_deg = np.sqrt(((XX - GT_LON) * cos_lat) ** 2 + (YY - GT_LAT) ** 2)
+        fade_radius = 0.40  # degrees (~45 km) — fade starts here
+        fade_width = 0.15   # degrees — fade to zero over this distance
+        radial_mask = np.clip(1.0 - (dist_deg - fade_radius) / fade_width, 0, 1)
+        rgba[..., 3] *= radial_mask
         ax.imshow(rgba, extent=h_extent, origin="lower",
                   aspect="auto", zorder=2, interpolation="bilinear")
 
@@ -267,19 +300,6 @@ def render_frame(fig, ax, basemap_img, basemap_ext, H_base, h_extent,
     for spine in ax.spines.values():
         spine.set_visible(False)
 
-    # Inset
-    if inset_img is not None:
-        # Remove old inset axes if any
-        for a in fig.get_axes():
-            if a is not ax:
-                a.remove()
-        inset_ax = fig.add_axes([0.02, 0.02, 0.22, 0.22], zorder=40)
-        inset_ax.imshow(inset_img)
-        inset_ax.set_xticks([])
-        inset_ax.set_yticks([])
-        for spine in inset_ax.spines.values():
-            spine.set_edgecolor(WHITE)
-            spine.set_linewidth(1.5)
 
 
 def main():
@@ -302,26 +322,26 @@ def main():
     print("Fetching basemap...")
     basemap_img, basemap_ext = get_basemap(extent)
 
-    print("Building heatmap grid...")
-    H_base, h_extent, _, _ = build_base_heatmap(data, extent)
+    print("Loading detection points...")
+    c_lats, c_lons, c_ints = get_detection_points(data, extent)
 
-    # Heatmap colormap — lower alphas to keep basemap visible
-    heatmap_cmap = LinearSegmentedColormap.from_list("heat", [
-        (0.0, (1, 0.1, 0.1, 0)),
-        (0.5, (1, 0.1, 0.1, 0)),
-        (0.65, (1, 0.15, 0.1, 0.05)),
-        (0.75, (1, 0.15, 0.05, 0.10)),
-        (0.85, (1, 0.2, 0.1, 0.20)),
-        (0.95, (1, 0.5, 0.3, 0.30)),
-        (1.0, (1, 0.85, 0.7, 0.40)),
-    ])
-    norm_base = Normalize(vmin=0, vmax=np.percentile(H_base[H_base > 0], 95)
-                          if (H_base > 0).any() else 1)
+    # Build a reference heatmap (January) to establish vmax
+    nx, ny = 250, 200
+    x_edges = np.linspace(extent[0] - 0.3, extent[1] + 0.3, nx + 1)
+    y_edges = np.linspace(extent[2] - 0.3, extent[3] + 0.3, ny + 1)
+    H_ref, _, _ = np.histogram2d(c_lons, c_lats, bins=[x_edges, y_edges],
+                                  weights=np.log1p(c_ints))
+    H_ref = gaussian_filter(H_ref.T, sigma=4)
+    # Use a high vmax so conflict frames stay translucent
+    vmax_ref = np.percentile(H_ref[H_ref > 0], 80) * 3.0 if (H_ref > 0).any() else 1
 
-    # Load inset
-    inset_img = None
-    if INSET_IMG.exists():
-        inset_img = Image.open(INSET_IMG)
+    # Pre-build unique heatmaps for each frame
+    print("Building per-frame heatmaps...")
+    frame_heatmaps = []
+    for i, (date, elev, dets, near, label) in enumerate(TIMELINE):
+        H_frame, h_extent = build_heatmap_for_frame(
+            c_lats, c_lons, c_ints, extent, dets, elev, seed=i * 42 + 7)
+        frame_heatmaps.append((H_frame, h_extent))
 
     # Render frames
     fig, ax = plt.subplots(figsize=(14, 11))
@@ -329,9 +349,9 @@ def main():
 
     for i, (date, elev, dets, near, label) in enumerate(TIMELINE):
         print(f"  Frame {i+1}/{len(TIMELINE)}: {date} — {label}")
-        render_frame(fig, ax, basemap_img, basemap_ext, H_base, h_extent,
-                     heatmap_cmap, norm_base, date, elev, dets, near, label,
-                     inset_img)
+        H_frame, h_extent = frame_heatmaps[i]
+        render_frame(fig, ax, basemap_img, basemap_ext, H_frame, h_extent,
+                     vmax_ref, date, elev, dets, near, label)
 
         # Render to image
         fig.canvas.draw()
