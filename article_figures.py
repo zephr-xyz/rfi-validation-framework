@@ -297,7 +297,7 @@ def figure1_hero(data):
     leg.get_frame().set_edgecolor(GRID_COLOR)
 
     # ── Inset: zoomed view of convergence zone ───────────────────────────
-    inset = fig.add_axes([0.14, 0.13, 0.35, 0.28])
+    inset = fig.add_axes([0.15, 0.28, 0.22, 0.18])
     inset.set_facecolor(BG_LIGHT)
 
     # Zoom to ~0.15° around ground truth
@@ -334,7 +334,10 @@ def figure1_hero(data):
 
     inset.set_aspect(1.0 / np.cos(np.radians(GT_LAT)))
     inset.grid(True, alpha=0.2, color=GRID_COLOR)
-    inset.set_title("Convergence Zone", fontsize=10, color=TEXT_COLOR, pad=6)
+    inset.set_title("Convergence Zone", fontsize=9, color=TEXT_COLOR, pad=4)
+    inset.set_xticklabels([])
+    inset.set_yticklabels([])
+    inset.tick_params(length=0)
     for spine in inset.spines.values():
         spine.set_edgecolor(TEXT_DIM)
         spine.set_linewidth(1.5)
