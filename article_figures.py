@@ -297,7 +297,7 @@ def figure1_hero(data):
     leg.get_frame().set_edgecolor(GRID_COLOR)
 
     # ── Inset: zoomed view of convergence zone ───────────────────────────
-    inset = fig.add_axes([0.15, 0.28, 0.22, 0.18])
+    inset = fig.add_axes([0.15, 0.22, 0.25, 0.20])
     inset.set_facecolor(BG_LIGHT)
 
     # Zoom to ~0.15° around ground truth
