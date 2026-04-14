@@ -1,0 +1,650 @@
+{
+  "scan_type": "hormuz_multipass",
+  "conflict_dates": [
+    "2026-04-01",
+    "2026-04-02",
+    "2026-04-03",
+    "2026-04-04",
+    "2026-04-05"
+  ],
+  "baseline_date": "2025-12-27",
+  "n_days_stacked": 5,
+  "baseline_stats": {
+    "mean": 10512.01871074113,
+    "std": 2649.807794819552,
+    "median": 10183.7529296875,
+    "n": 44459
+  },
+  "n_conflict_measurements": 0,
+  "n_baseline_measurements": 0,
+  "region": {
+    "lat_min": 24.5,
+    "lat_max": 29.5,
+    "lon_min": 48.5,
+    "lon_max": 58.5
+  },
+  "grid_resolution_deg": 0.05,
+  "detection_zscore": 2.0,
+  "denial_threshold": 3.0,
+  "n_jammers": 16,
+  "n_shipping_threats": 5,
+  "shipping_lane": [
+    {
+      "lat": 25.4,
+      "lon": 57.0
+    },
+    {
+      "lat": 25.8,
+      "lon": 56.8
+    },
+    {
+      "lat": 26.1,
+      "lon": 56.6
+    },
+    {
+      "lat": 26.3,
+      "lon": 56.4
+    },
+    {
+      "lat": 26.4,
+      "lon": 56.2
+    },
+    {
+      "lat": 26.45,
+      "lon": 56.0
+    },
+    {
+      "lat": 26.5,
+      "lon": 55.8
+    },
+    {
+      "lat": 26.55,
+      "lon": 55.6
+    },
+    {
+      "lat": 26.55,
+      "lon": 55.3
+    },
+    {
+      "lat": 26.6,
+      "lon": 55.0
+    },
+    {
+      "lat": 26.65,
+      "lon": 54.7
+    },
+    {
+      "lat": 26.7,
+      "lon": 54.4
+    },
+    {
+      "lat": 26.8,
+      "lon": 54.1
+    },
+    {
+      "lat": 26.9,
+      "lon": 53.8
+    },
+    {
+      "lat": 27.0,
+      "lon": 53.5
+    },
+    {
+      "lat": 27.1,
+      "lon": 53.2
+    },
+    {
+      "lat": 27.25,
+      "lon": 53.0
+    },
+    {
+      "lat": 27.4,
+      "lon": 52.7
+    },
+    {
+      "lat": 27.55,
+      "lon": 52.4
+    },
+    {
+      "lat": 27.7,
+      "lon": 52.1
+    },
+    {
+      "lat": 27.9,
+      "lon": 51.8
+    },
+    {
+      "lat": 28.1,
+      "lon": 51.5
+    },
+    {
+      "lat": 28.3,
+      "lon": 51.2
+    },
+    {
+      "lat": 28.5,
+      "lon": 50.9
+    },
+    {
+      "lat": 28.6,
+      "lon": 50.6
+    },
+    {
+      "lat": 28.8,
+      "lon": 50.3
+    },
+    {
+      "lat": 29.0,
+      "lon": 50.0
+    },
+    {
+      "lat": 29.2,
+      "lon": 49.7
+    },
+    {
+      "lat": 29.4,
+      "lon": 49.4
+    }
+  ],
+  "jammers": [
+    {
+      "estimated_lat": 28.2157,
+      "estimated_lon": 52.4804,
+      "amplitude": 19717.5,
+      "residual": 9.038238,
+      "n_elevated_points": 180,
+      "bootstrap_cep_km": 0.35,
+      "bootstrap_n_fits": 200,
+      "centroid_lat": 28.7157,
+      "centroid_lon": 52.8267,
+      "cluster_id": 134,
+      "cluster_n_cells": 52,
+      "cluster_n_measurements": 180,
+      "cluster_mean_zscore": 3.589995134392806,
+      "cluster_max_zscore": 7.40918783258706,
+      "cluster_extent_km": 240.22018918368894,
+      "n_contributing_clusters": 1,
+      "n_dates": 1,
+      "dates": [
+        "2026-04-06"
+      ],
+      "denial_range_km": 81.1,
+      "shipping_lane_impacts": [
+        {
+          "lane_lat": 27.55,
+          "lane_lon": 52.4,
+          "distance_km": 74.4,
+          "signal_strength": 3.6
+        },
+        {
+          "lane_lat": 27.7,
+          "lane_lon": 52.1,
+          "distance_km": 68.4,
+          "signal_strength": 4.2
+        },
+        {
+          "lane_lat": 27.9,
+          "lane_lon": 51.8,
+          "distance_km": 75.4,
+          "signal_strength": 3.5
+        }
+      ],
+      "impacts_shipping": true,
+      "n_lane_points_denied": 3
+    },
+    {
+      "estimated_lat": 26.3398,
+      "estimated_lon": 54.3917,
+      "amplitude": 12631.6,
+      "residual": 2.458712,
+      "n_elevated_points": 67,
+      "bootstrap_cep_km": 3.04,
+      "bootstrap_n_fits": 200,
+      "centroid_lat": 25.8398,
+      "centroid_lon": 54.5834,
+      "cluster_id": 50,
+      "cluster_n_cells": 19,
+      "cluster_n_measurements": 67,
+      "cluster_mean_zscore": 3.267103312109091,
+      "cluster_max_zscore": 4.269376522257069,
+      "cluster_extent_km": 108.94346901183849,
+      "n_contributing_clusters": 1,
+      "n_dates": 1,
+      "dates": [
+        "2026-04-06"
+      ],
+      "denial_range_km": 64.9,
+      "shipping_lane_impacts": [
+        {
+          "lane_lat": 26.65,
+          "lane_lon": 54.7,
+          "distance_km": 46.2,
+          "signal_strength": 5.9
+        },
+        {
+          "lane_lat": 26.7,
+          "lane_lon": 54.4,
+          "distance_km": 40.1,
+          "signal_strength": 7.9
+        },
+        {
+          "lane_lat": 26.8,
+          "lane_lon": 54.1,
+          "distance_km": 58.8,
+          "signal_strength": 3.7
+        }
+      ],
+      "impacts_shipping": true,
+      "n_lane_points_denied": 3
+    },
+    {
+      "estimated_lat": 29.175,
+      "estimated_lon": 49.4149,
+      "amplitude": 11580.5,
+      "residual": 0.533008,
+      "n_elevated_points": 46,
+      "bootstrap_cep_km": 3.74,
+      "bootstrap_n_fits": 200,
+      "centroid_lat": 29.675,
+      "centroid_lon": 49.3769,
+      "cluster_id": 188,
+      "cluster_n_cells": 13,
+      "cluster_n_measurements": 46,
+      "cluster_mean_zscore": 3.440865314000971,
+      "cluster_max_zscore": 4.144003521197053,
+      "cluster_extent_km": 77.7003205324017,
+      "n_contributing_clusters": 1,
+      "n_dates": 1,
+      "dates": [
+        "2026-04-06"
+      ],
+      "denial_range_km": 62.1,
+      "shipping_lane_impacts": [
+        {
+          "lane_lat": 29.0,
+          "lane_lon": 50.0,
+          "distance_km": 60.1,
+          "signal_strength": 3.2
+        },
+        {
+          "lane_lat": 29.2,
+          "lane_lon": 49.7,
+          "distance_km": 27.8,
+          "signal_strength": 15.0
+        },
+        {
+          "lane_lat": 29.4,
+          "lane_lon": 49.4,
+          "distance_km": 25.1,
+          "signal_strength": 18.4
+        }
+      ],
+      "impacts_shipping": true,
+      "n_lane_points_denied": 3
+    },
+    {
+      "estimated_lat": 28.8989,
+      "estimated_lon": 51.2494,
+      "amplitude": 10910.6,
+      "residual": 0.61558,
+      "n_elevated_points": 20,
+      "bootstrap_cep_km": 7.97,
+      "bootstrap_n_fits": 200,
+      "centroid_lat": 29.3989,
+      "centroid_lon": 50.8343,
+      "cluster_id": 179,
+      "cluster_n_cells": 7,
+      "cluster_n_measurements": 20,
+      "cluster_mean_zscore": 3.148661032395193,
+      "cluster_max_zscore": 4.1067533130423115,
+      "cluster_extent_km": 49.46085299754317,
+      "n_contributing_clusters": 1,
+      "n_dates": 1,
+      "dates": [
+        "2026-04-06"
+      ],
+      "denial_range_km": 60.3,
+      "shipping_lane_impacts": [
+        {
+          "lane_lat": 28.5,
+          "lane_lon": 50.9,
+          "distance_km": 55.9,
+          "signal_strength": 3.5
+        }
+      ],
+      "impacts_shipping": true,
+      "n_lane_points_denied": 1
+    },
+    {
+      "estimated_lat": 28.803,
+      "estimated_lon": 50.6407,
+      "amplitude": 9092.8,
+      "residual": 1.525893,
+      "n_elevated_points": 18,
+      "bootstrap_cep_km": null,
+      "bootstrap_n_fits": 200,
+      "centroid_lat": 29.303,
+      "centroid_lon": 51.1407,
+      "cluster_id": 175,
+      "cluster_n_cells": 6,
+      "cluster_n_measurements": 18,
+      "cluster_mean_zscore": 2.882067190318312,
+      "cluster_max_zscore": 3.405884131729432,
+      "cluster_extent_km": 40.156250530248485,
+      "n_contributing_clusters": 1,
+      "n_dates": 1,
+      "dates": [
+        "2026-04-06"
+      ],
+      "denial_range_km": 55.1,
+      "shipping_lane_impacts": [
+        {
+          "lane_lat": 28.5,
+          "lane_lon": 50.9,
+          "distance_km": 42.1,
+          "signal_strength": 5.1
+        },
+        {
+          "lane_lat": 28.6,
+          "lane_lon": 50.6,
+          "distance_km": 22.9,
+          "signal_strength": 17.3
+        },
+        {
+          "lane_lat": 28.8,
+          "lane_lon": 50.3,
+          "distance_km": 33.2,
+          "signal_strength": 8.2
+        }
+      ],
+      "impacts_shipping": true,
+      "n_lane_points_denied": 3
+    },
+    {
+      "estimated_lat": 28.6691,
+      "estimated_lon": 54.5634,
+      "amplitude": 15540.4,
+      "residual": 1.294926,
+      "n_elevated_points": 41,
+      "bootstrap_cep_km": 2.77,
+      "bootstrap_n_fits": 200,
+      "centroid_lat": 29.1691,
+      "centroid_lon": 54.5555,
+      "cluster_id": 169,
+      "cluster_n_cells": 13,
+      "cluster_n_measurements": 41,
+      "cluster_mean_zscore": 4.274335180281543,
+      "cluster_max_zscore": 5.839459445585973,
+      "cluster_extent_km": 80.42032011253988,
+      "n_contributing_clusters": 1,
+      "n_dates": 1,
+      "dates": [
+        "2026-04-06"
+      ],
+      "denial_range_km": 72.0,
+      "shipping_lane_impacts": [],
+      "impacts_shipping": false,
+      "n_lane_points_denied": 0
+    },
+    {
+      "estimated_lat": 28.9235,
+      "estimated_lon": 51.9547,
+      "amplitude": 14370.0,
+      "residual": 0.451484,
+      "n_elevated_points": 26,
+      "bootstrap_cep_km": 5.19,
+      "bootstrap_n_fits": 200,
+      "centroid_lat": 28.4954,
+      "centroid_lon": 52.0966,
+      "cluster_id": 144,
+      "cluster_n_cells": 8,
+      "cluster_n_measurements": 26,
+      "cluster_mean_zscore": 3.9151174446724637,
+      "cluster_max_zscore": 5.167904620207146,
+      "cluster_extent_km": 40.441350596491,
+      "n_contributing_clusters": 1,
+      "n_dates": 1,
+      "dates": [
+        "2026-04-06"
+      ],
+      "denial_range_km": 69.2,
+      "shipping_lane_impacts": [],
+      "impacts_shipping": false,
+      "n_lane_points_denied": 0
+    },
+    {
+      "estimated_lat": 28.8895,
+      "estimated_lon": 53.022,
+      "amplitude": 14153.9,
+      "residual": 2.690603,
+      "n_elevated_points": 25,
+      "bootstrap_cep_km": null,
+      "bootstrap_n_fits": 200,
+      "centroid_lat": 28.3895,
+      "centroid_lon": 52.522,
+      "cluster_id": 139,
+      "cluster_n_cells": 6,
+      "cluster_n_measurements": 25,
+      "cluster_mean_zscore": 4.075250415108671,
+      "cluster_max_zscore": 4.663038009963905,
+      "cluster_extent_km": 40.476494230414126,
+      "n_contributing_clusters": 1,
+      "n_dates": 1,
+      "dates": [
+        "2026-04-06"
+      ],
+      "denial_range_km": 68.7,
+      "shipping_lane_impacts": [],
+      "impacts_shipping": false,
+      "n_lane_points_denied": 0
+    },
+    {
+      "estimated_lat": 27.8059,
+      "estimated_lon": 57.2228,
+      "amplitude": 13605.9,
+      "residual": 0.224588,
+      "n_elevated_points": 30,
+      "bootstrap_cep_km": 2.05,
+      "bootstrap_n_fits": 200,
+      "centroid_lat": 28.3059,
+      "centroid_lon": 57.6401,
+      "cluster_id": 129,
+      "cluster_n_cells": 12,
+      "cluster_n_measurements": 30,
+      "cluster_mean_zscore": 4.259530891189441,
+      "cluster_max_zscore": 4.9407286501511765,
+      "cluster_extent_km": 84.70543922364948,
+      "n_contributing_clusters": 1,
+      "n_dates": 1,
+      "dates": [
+        "2026-04-06"
+      ],
+      "denial_range_km": 67.3,
+      "shipping_lane_impacts": [],
+      "impacts_shipping": false,
+      "n_lane_points_denied": 0
+    },
+    {
+      "estimated_lat": 27.2164,
+      "estimated_lon": 58.4764,
+      "amplitude": 11995.9,
+      "residual": 1.056122,
+      "n_elevated_points": 49,
+      "bootstrap_cep_km": null,
+      "bootstrap_n_fits": 200,
+      "centroid_lat": 27.7164,
+      "centroid_lon": 58.9764,
+      "cluster_id": 104,
+      "cluster_n_cells": 11,
+      "cluster_n_measurements": 49,
+      "cluster_mean_zscore": 3.0910545559306004,
+      "cluster_max_zscore": 3.561049635417866,
+      "cluster_extent_km": 53.72219405165491,
+      "n_contributing_clusters": 2,
+      "n_dates": 1,
+      "dates": [
+        "2026-04-06"
+      ],
+      "denial_range_km": 63.2,
+      "shipping_lane_impacts": [],
+      "impacts_shipping": false,
+      "n_lane_points_denied": 0
+    },
+    {
+      "estimated_lat": 28.5642,
+      "estimated_lon": 55.7291,
+      "amplitude": 10471.0,
+      "residual": 1.998743,
+      "n_elevated_points": 35,
+      "bootstrap_cep_km": null,
+      "bootstrap_n_fits": 200,
+      "centroid_lat": 29.0642,
+      "centroid_lon": 56.2291,
+      "cluster_id": 164,
+      "cluster_n_cells": 12,
+      "cluster_n_measurements": 35,
+      "cluster_mean_zscore": 3.0761826119748483,
+      "cluster_max_zscore": 3.6345018337130788,
+      "cluster_extent_km": 62.11308341429179,
+      "n_contributing_clusters": 1,
+      "n_dates": 1,
+      "dates": [
+        "2026-04-06"
+      ],
+      "denial_range_km": 59.1,
+      "shipping_lane_impacts": [],
+      "impacts_shipping": false,
+      "n_lane_points_denied": 0
+    },
+    {
+      "estimated_lat": 27.5543,
+      "estimated_lon": 54.7677,
+      "amplitude": 10003.5,
+      "residual": 0.252902,
+      "n_elevated_points": 18,
+      "bootstrap_cep_km": 6.5,
+      "bootstrap_n_fits": 200,
+      "centroid_lat": 28.0543,
+      "centroid_lon": 54.7773,
+      "cluster_id": 123,
+      "cluster_n_cells": 5,
+      "cluster_n_measurements": 18,
+      "cluster_mean_zscore": 2.911110458226811,
+      "cluster_max_zscore": 3.467672221726031,
+      "cluster_extent_km": 31.300955434641427,
+      "n_contributing_clusters": 1,
+      "n_dates": 1,
+      "dates": [
+        "2026-04-06"
+      ],
+      "denial_range_km": 57.7,
+      "shipping_lane_impacts": [],
+      "impacts_shipping": false,
+      "n_lane_points_denied": 0
+    },
+    {
+      "estimated_lat": 27.6984,
+      "estimated_lon": 49.6436,
+      "amplitude": 9869.0,
+      "residual": 1.598638,
+      "n_elevated_points": 19,
+      "bootstrap_cep_km": null,
+      "bootstrap_n_fits": 200,
+      "centroid_lat": 28.1984,
+      "centroid_lon": 50.1436,
+      "cluster_id": 127,
+      "cluster_n_cells": 6,
+      "cluster_n_measurements": 19,
+      "cluster_mean_zscore": 3.145112701777929,
+      "cluster_max_zscore": 3.3888892375287885,
+      "cluster_extent_km": 40.546450746776195,
+      "n_contributing_clusters": 1,
+      "n_dates": 1,
+      "dates": [
+        "2026-04-06"
+      ],
+      "denial_range_km": 57.4,
+      "shipping_lane_impacts": [],
+      "impacts_shipping": false,
+      "n_lane_points_denied": 0
+    },
+    {
+      "estimated_lat": 29.2982,
+      "estimated_lon": 55.3588,
+      "amplitude": 8321.0,
+      "residual": 2.228786,
+      "n_elevated_points": 17,
+      "bootstrap_cep_km": null,
+      "bootstrap_n_fits": 200,
+      "centroid_lat": 28.7982,
+      "centroid_lon": 55.8588,
+      "cluster_id": 154,
+      "cluster_n_cells": 6,
+      "cluster_n_measurements": 17,
+      "cluster_mean_zscore": 2.7697360423053023,
+      "cluster_max_zscore": 2.851280718308368,
+      "cluster_extent_km": 40.33525982223102,
+      "n_contributing_clusters": 2,
+      "n_dates": 1,
+      "dates": [
+        "2026-04-06"
+      ],
+      "denial_range_km": 52.7,
+      "shipping_lane_impacts": [],
+      "impacts_shipping": false,
+      "n_lane_points_denied": 0
+    },
+    {
+      "estimated_lat": 26.0904,
+      "estimated_lon": 50.7854,
+      "amplitude": 7847.5,
+      "residual": 2.265802,
+      "n_elevated_points": 21,
+      "bootstrap_cep_km": null,
+      "bootstrap_n_fits": 200,
+      "centroid_lat": 25.5904,
+      "centroid_lon": 50.2854,
+      "cluster_id": 43,
+      "cluster_n_cells": 6,
+      "cluster_n_measurements": 21,
+      "cluster_mean_zscore": 2.743895296787293,
+      "cluster_max_zscore": 2.8616155873959315,
+      "cluster_extent_km": 41.41529096770489,
+      "n_contributing_clusters": 1,
+      "n_dates": 1,
+      "dates": [
+        "2026-04-06"
+      ],
+      "denial_range_km": 51.1,
+      "shipping_lane_impacts": [],
+      "impacts_shipping": false,
+      "n_lane_points_denied": 0
+    },
+    {
+      "estimated_lat": 28.759,
+      "estimated_lon": 48.8458,
+      "amplitude": 7803.7,
+      "residual": 0.194095,
+      "n_elevated_points": 16,
+      "bootstrap_cep_km": 5.5,
+      "bootstrap_n_fits": 200,
+      "centroid_lat": 28.259,
+      "centroid_lon": 48.9388,
+      "cluster_id": 130,
+      "cluster_n_cells": 3,
+      "cluster_n_measurements": 16,
+      "cluster_mean_zscore": 2.6413233058190104,
+      "cluster_max_zscore": 2.8203334805761995,
+      "cluster_extent_km": 19.49704330842392,
+      "n_contributing_clusters": 1,
+      "n_dates": 1,
+      "dates": [
+        "2026-04-06"
+      ],
+      "denial_range_km": 51.0,
+      "shipping_lane_impacts": [],
+      "impacts_shipping": false,
+      "n_lane_points_denied": 0
+    }
+  ]
+}
