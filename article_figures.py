@@ -619,14 +619,13 @@ def figure4_nisar_streaks(data):
 # ═══════════════════════════════════════════════════════════════════════════
 
 def figure5_method_comparison(data):
-    """Three-column comparison: CYGNSS vs NISAR vs Fused with metrics."""
+    """Two-column comparison: CYGNSS vs NISAR with metrics."""
     setup_dark_style()
-    fig, axes = plt.subplots(1, 3, figsize=(16, 7))
+    fig, axes = plt.subplots(1, 2, figsize=(12, 7))
 
     methods = [
         ("CYGNSS\n(GNSS-R)", data["cygnss"], CYGNSS_COLOR, "^"),
         ("NISAR\n(L-band SAR)", data["nisar"], NISAR_COLOR, "v"),
-        ("Fused\n(Bayesian)", data["fused"], FUSED_COLOR, "*"),
     ]
 
     for ax, (label, result, color, marker) in zip(axes, methods):
@@ -688,7 +687,7 @@ def figure5_method_comparison(data):
     for ax in axes:
         ax.set_xlabel("Longitude (°E)")
 
-    fig.suptitle("Method Comparison: Which Satellite Wins?",
+    fig.suptitle("Satellite Comparison: CYGNSS vs NISAR",
                 fontsize=16, fontweight="bold", y=0.98)
     fig.text(0.5, 0.01,
              "Gold star = ground truth  |  Colored marker = estimate  |  "
@@ -1052,7 +1051,7 @@ FIGURES = {
     2: ("ON vs OFF: The Smoking Gun", figure2_on_vs_off),
     3: ("CYGNSS 1/r² Inverse-Distance Model", figure3_inverse_distance),
     4: ("NISAR Streak Bearing Intersection", figure4_nisar_streaks),
-    5: ("Three-Column Method Comparison", figure5_method_comparison),
+    5: ("CYGNSS vs NISAR Comparison", figure5_method_comparison),
     6: ("Bayesian Fusion Mechanics", figure6_bayesian_fusion),
     7: ("Results Dashboard", figure7_dashboard),
     8: ("Jammer Persistence Timeline", figure8_timeline),
