@@ -67,8 +67,8 @@
 
 <div class="legend">
   <h3>Legend</h3>
-  <div class="legend-item"><div class="legend-dot" style="background:#d73a49"></div> Iran (threatens shipping)</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#e36d5b"></div> Iran (inland)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#d73a49"></div> Iran</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#79c0ff"></div> International Waters</div>
   <div class="legend-item"><div class="legend-dot" style="background:#d29922"></div> UAE</div>
   <div class="legend-item"><div class="legend-dot" style="background:#8957e5"></div> Oman</div>
   <div class="legend-item"><div class="legend-dot" style="background:#2ea043"></div> Saudi Arabia</div>
@@ -92,13 +92,65 @@ const COUNTRY_POLYS = {
 };
 
 // Rough classification by lat/lon for the Gulf
+// Approximate Iranian coastline (lat as function of lon) — points south
+// of this line and north of the Arab coast are in international waters
+function isInternationalWaters(lat, lon) {
+  // Gulf of Oman — open water south of Iran, north of Oman/UAE
+  if (lon >= 56.5 && lat > 24.5 && lat < 25.5) return true;
+
+  // Persian Gulf water body — rough centerline test
+  // Iranian coast approximation (south-facing coast):
+  // lon 49-50: coast ~30.0°N (Kuwait area, Iran starts ~29.5°N)
+  // lon 50-51: coast ~28.5-29°N
+  // lon 51-52: coast ~28-28.5°N
+  // lon 52-53: coast ~27.5-28°N (Bushehr area)
+  // lon 53-54: coast ~27-27.5°N
+  // lon 54-55: coast ~26.5-27°N (Bandar Abbas area)
+  // lon 55-56: coast ~26.5°N (Qeshm/Hormuz)
+  const iranCoast = [
+    [49.0, 29.8], [50.0, 29.2], [50.5, 28.8], [51.0, 28.5],
+    [51.5, 28.2], [52.0, 27.8], [52.5, 27.6], [53.0, 27.4],
+    [53.5, 27.2], [54.0, 27.0], [54.5, 26.8], [55.0, 26.7],
+    [55.5, 26.6], [56.0, 26.5], [56.5, 26.4],
+  ];
+  // Arab coast approximation (north-facing coast):
+  // lon 49-50: coast ~28.5°N (Kuwait)
+  // lon 50-51: coast ~26-27°N (Saudi/Bahrain)
+  // lon 51-52: coast ~25-26°N (Qatar)
+  // lon 52-54: coast ~24.5-25°N (UAE)
+  // lon 54-56: coast ~25-25.5°N (UAE/Oman)
+  const arabCoast = [
+    [49.0, 28.8], [49.5, 28.5], [50.0, 27.5], [50.5, 26.5],
+    [51.0, 26.0], [51.5, 25.5], [52.0, 25.2], [52.5, 25.0],
+    [53.0, 24.8], [53.5, 24.7], [54.0, 24.8], [54.5, 25.0],
+    [55.0, 25.2], [55.5, 25.5], [56.0, 26.0], [56.5, 26.2],
+  ];
+
+  function interpolate(coast, targetLon) {
+    for (let i = 0; i < coast.length - 1; i++) {
+      if (targetLon >= coast[i][0] && targetLon <= coast[i+1][0]) {
+        const frac = (targetLon - coast[i][0]) / (coast[i+1][0] - coast[i][0]);
+        return coast[i][1] + frac * (coast[i+1][1] - coast[i][1]);
+      }
+    }
+    return null;
+  }
+
+  if (lon >= 49.0 && lon <= 56.5) {
+    const iranLat = interpolate(iranCoast, lon);
+    const arabLat = interpolate(arabCoast, lon);
+    if (iranLat !== null && arabLat !== null) {
+      // Must be well south of Iran and well north of Arab coast
+      // Use a buffer (~0.3°) from each coast to account for territorial waters
+      if (lat < (iranLat - 0.3) && lat > (arabLat + 0.3)) return true;
+    }
+  }
+  return false;
+}
+
 function classifyCountry(lat, lon) {
-  // Iran: most of the northern/eastern part
-  // UAE: southern coast 22-26N, 51-56.5E
-  // Oman: southeast, Gulf of Oman side, and Musandam
-  // Saudi: western Gulf coast
-  // Qatar: peninsula
-  // Kuwait/Iraq: far NW
+  // Check international waters FIRST
+  if (isInternationalWaters(lat, lon)) return 'Intl. Waters';
 
   // Qatar peninsula
   if (lat >= 24.4 && lat <= 26.2 && lon >= 50.7 && lon <= 51.7) return 'Qatar';
@@ -121,7 +173,7 @@ function classifyCountry(lat, lon) {
   if (lat < 28.5 && lat > 24.0 && lon < 50.5) return 'Saudi Arabia';
   if (lat < 26.5 && lon >= 50.0 && lon < 50.7) return 'Saudi Arabia';
 
-  // Iran — everything else in the region (northern/eastern)
+  // Iran — near Iranian coast (northern/eastern)
   if (lat > 26.0) return 'Iran';
   if (lon > 53.0 && lat > 25.0) return 'Iran';
   if (lat > 25.5 && lon > 51.5) return 'Iran';
@@ -141,7 +193,11 @@ const COUNTRY_COLORS = {
   'Bahrain': '#1f6feb',
   'Kuwait': '#f0883e',
   'Iraq': '#f0883e',
+  'Intl. Waters': '#79c0ff',
 };
+
+// Add to legend
+// (Intl. Waters uses same color for threat/inland since it's all water)
 
 const COUNTRY_COLORS_INLAND = {
   'Iran': '#e36d5b',
@@ -151,6 +207,8 @@ const COUNTRY_COLORS_INLAND = {
   'Qatar': '#539bf5',
   'Bahrain': '#539bf5',
   'Kuwait': '#f4a261',
+  'Iraq': '#f4a261',
+  'Intl. Waters': '#a2d2fb',
   'Iraq': '#f4a261',
 };
 
