@@ -356,23 +356,24 @@ function render(data) {
   // Qeshm and the Iranian mainland), then around Qeshm's eastern tip,
   // then south between Qeshm and Larak, and SE to Gulf of Oman.
   const iranianLane = [
-    [26.20, 55.10],  // #0 from Gulf corridor (west)
-    [26.40, 55.35],  // #1
-    [26.55, 55.55],  // #2 heading NE toward Iranian waters (keep)
-    [26.55, 55.75],  // #3 south of Qeshm — moved south from 26.68
-    [26.58, 55.95],  // #4 south of Qeshm — moved south from 26.78
-    [26.65, 56.15],  // #5 south of Qeshm — moved south from 26.88
-    [26.92, 56.30],  // #6 passing north of Larak Island (keep)
-    [26.90, 56.45],  // #7 east of Larak, between Larak and Hormuz Island
-    [26.82, 56.58],  // #8 south of Hormuz Island
-    [26.70, 56.70],  // #9 heading SE past the islands
-    [26.55, 56.80],  // #10 well east of Musandam
-    [26.35, 56.90],  // #11
-    [26.10, 57.00],  // #12 heading SE into Gulf of Oman
-    [25.80, 57.15],  // #13
-    [25.50, 57.35],  // #14
-    [25.15, 57.60],  // #15
-    [24.80, 57.95],  // #16 Gulf of Oman
+    [26.20, 55.10],  // from Gulf corridor (west)
+    [26.45, 55.25],  // heading NE
+    [26.70, 55.30],  // approaching Qeshm from west
+    [26.88, 55.35],  // entering Khuran Channel — north of Qeshm
+    [26.90, 55.55],  // through Khuran Channel
+    [26.92, 55.80],  // continuing east through channel
+    [27.05, 56.05],  // north coast of Qeshm
+    [27.00, 56.25],  // approaching Qeshm eastern tip
+    [26.92, 56.38],  // rounding Qeshm's E tip, between Qeshm and Hormuz Is.
+    [26.82, 56.48],  // south of Hormuz Island, north of Larak
+    [26.72, 56.60],  // past Larak, heading SE
+    [26.55, 56.78],  // curving south, well east of Musandam
+    [26.35, 56.90],  //
+    [26.10, 57.02],  // heading SE into Gulf of Oman
+    [25.80, 57.18],  //
+    [25.50, 57.38],  //
+    [25.15, 57.62],  //
+    [24.80, 57.95],  // Gulf of Oman
   ];
 
   // Draw Gulf corridor as wide transparent band

@@ -325,54 +325,47 @@ function render(data) {
   // Outbound mirrors inbound approach: same east-of-Musandam path,
   // runs slightly south of inbound through the Strait itself.
   // Key: share the same safe waypoints east of Musandam as inbound.
-  // Outbound runs NORTH of inbound (~26.45°N vs 26.40°N) through entire
-  // Strait to stay clear of Musandam. Peninsula extends to ~56.0°E at 26.3°N.
   const tssOutbound = [
     [26.20, 55.10],  // from Gulf corridor
-    [26.30, 55.35],  //
-    [26.38, 55.60],  // climbing north before reaching Musandam
-    [26.45, 55.85],  // north of peninsula's west extent
-    [26.47, 56.05],  // through Strait at ~26.47°N — north of inbound
-    [26.48, 56.20],  // outbound lane
-    [26.48, 56.35],  //
-    [26.48, 56.50],  // continuing east, north of Musandam tip (26.41°N)
-    [26.50, 56.65],  // safely north and east of all Musandam land
-    [26.42, 56.80],  // turning SE — lon 56.80 is well east of coast
-    [26.20, 56.92],  // heading SE into Gulf of Oman
-    [25.90, 57.05],  //
-    [25.60, 57.20],  //
-    [25.30, 57.45],  //
+    [26.25, 55.35],  //
+    [26.28, 55.60],  //
+    [26.30, 55.85],  //
+    [26.32, 56.05],  // through Strait, south of inbound
+    [26.33, 56.20],  // outbound lane ~26.32°N
+    [26.35, 56.35],  //
+    [26.40, 56.45],  // exiting TSS — turning NE
+    [26.48, 56.55],  // north of Musandam tip, heading east
+    [26.48, 56.65],  // safe corridor — pushed north ~3km
+    [26.40, 56.78],  // now heading SE at lon 56.78 — well east of all land
+    [26.18, 56.88],  // clear of Musandam coast
+    [25.90, 56.96],  // heading SE into Gulf of Oman
+    [25.60, 57.12],  //
+    [25.30, 57.40],  //
     [25.05, 57.75],  //
     [24.70, 58.25],  // Gulf of Oman deep water
   ];
 
-  // Iranian-controlled "toll booth" lane
-  // Qeshm Island is large: ~26.50-26.95°N, ~55.30-56.30°E
-  // Larak Island: ~26.82-26.88°N, ~56.30-56.40°E (SE of Qeshm tip)
-  // Hormuz Island: ~27.02-27.08°N, ~56.42-56.50°E
-  //
-  // The Iranian route forces ships through Iranian waters by routing
-  // them NORTH of Qeshm through the Khuran Channel (~27.05°N, between
-  // Qeshm and the Iranian mainland), then around Qeshm's eastern tip,
-  // then south between Qeshm and Larak, and SE to Gulf of Oman.
+  // Iranian-controlled lane
+  // Per the Iranian chart: runs NORTH of the TSS, between southern coast
+  // of Qeshm Island and Larak Island, through Iranian territorial waters.
+  // Exits the Strait well north of Musandam, then curves SE.
   const iranianLane = [
-    [26.20, 55.10],  // #0 from Gulf corridor (west)
-    [26.40, 55.35],  // #1
-    [26.55, 55.55],  // #2 heading NE toward Iranian waters (keep)
-    [26.55, 55.75],  // #3 south of Qeshm — moved south from 26.68
-    [26.58, 55.95],  // #4 south of Qeshm — moved south from 26.78
-    [26.65, 56.15],  // #5 south of Qeshm — moved south from 26.88
-    [26.92, 56.30],  // #6 passing north of Larak Island (keep)
-    [26.90, 56.45],  // #7 east of Larak, between Larak and Hormuz Island
-    [26.82, 56.58],  // #8 south of Hormuz Island
-    [26.70, 56.70],  // #9 heading SE past the islands
-    [26.55, 56.80],  // #10 well east of Musandam
-    [26.35, 56.90],  // #11
-    [26.10, 57.00],  // #12 heading SE into Gulf of Oman
-    [25.80, 57.15],  // #13
-    [25.50, 57.35],  // #14
-    [25.15, 57.60],  // #15
-    [24.80, 57.95],  // #16 Gulf of Oman
+    [26.20, 55.10],  // from Gulf corridor (west)
+    [26.35, 55.35],  //
+    [26.48, 55.60],  // heading NE toward Iranian waters
+    [26.55, 55.85],  // south coast of Qeshm Island
+    [26.58, 56.05],  // along Qeshm south shore
+    [26.60, 56.20],  // between Qeshm and Larak — Iranian waters
+    [26.62, 56.35],  // north of TSS, south of Qeshm
+    [26.58, 56.50],  // past Larak Island (26.85°N, 56.35°E)
+    [26.55, 56.60],  // heading SE, north of Musandam
+    [26.48, 56.68],  // well north of Musandam tip
+    [26.35, 56.75],  // curving south, east of peninsula
+    [26.15, 56.82],  // heading SE
+    [25.90, 56.95],  //
+    [25.60, 57.15],  //
+    [25.30, 57.42],  //
+    [24.95, 57.80],  // Gulf of Oman
   ];
 
   // Draw Gulf corridor as wide transparent band

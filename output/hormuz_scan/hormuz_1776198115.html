@@ -347,32 +347,28 @@ function render(data) {
   ];
 
   // Iranian-controlled "toll booth" lane
-  // Qeshm Island is large: ~26.50-26.95°N, ~55.30-56.30°E
-  // Larak Island: ~26.82-26.88°N, ~56.30-56.40°E (SE of Qeshm tip)
-  // Hormuz Island: ~27.02-27.08°N, ~56.42-56.50°E
-  //
-  // The Iranian route forces ships through Iranian waters by routing
-  // them NORTH of Qeshm through the Khuran Channel (~27.05°N, between
-  // Qeshm and the Iranian mainland), then around Qeshm's eastern tip,
-  // then south between Qeshm and Larak, and SE to Gulf of Oman.
+  // Per Iranian chart: route goes NORTH of Larak Island (26.85°N, 56.35°E),
+  // passing between Larak and Qeshm's south coast / Iranian mainland.
+  // Then curves south past Hormuz Island (27.06°N, 56.46°E) and heads SE.
+  // This forces vessels through Iranian territorial waters.
   const iranianLane = [
-    [26.20, 55.10],  // #0 from Gulf corridor (west)
-    [26.40, 55.35],  // #1
-    [26.55, 55.55],  // #2 heading NE toward Iranian waters (keep)
-    [26.55, 55.75],  // #3 south of Qeshm — moved south from 26.68
-    [26.58, 55.95],  // #4 south of Qeshm — moved south from 26.78
-    [26.65, 56.15],  // #5 south of Qeshm — moved south from 26.88
-    [26.92, 56.30],  // #6 passing north of Larak Island (keep)
-    [26.90, 56.45],  // #7 east of Larak, between Larak and Hormuz Island
-    [26.82, 56.58],  // #8 south of Hormuz Island
-    [26.70, 56.70],  // #9 heading SE past the islands
-    [26.55, 56.80],  // #10 well east of Musandam
-    [26.35, 56.90],  // #11
-    [26.10, 57.00],  // #12 heading SE into Gulf of Oman
-    [25.80, 57.15],  // #13
-    [25.50, 57.35],  // #14
-    [25.15, 57.60],  // #15
-    [24.80, 57.95],  // #16 Gulf of Oman
+    [26.20, 55.10],  // from Gulf corridor (west)
+    [26.40, 55.35],  //
+    [26.55, 55.55],  // heading NE toward Iranian waters
+    [26.68, 55.75],  // approaching Qeshm from SW
+    [26.78, 55.95],  // south coast of Qeshm
+    [26.88, 56.15],  // between Qeshm south shore and Larak — NORTH of Larak
+    [26.92, 56.30],  // passing north of Larak Island (26.85°N, 56.35°E)
+    [26.90, 56.45],  // east of Larak, between Larak and Hormuz Island
+    [26.82, 56.58],  // south of Hormuz Island (27.06°N, 56.46°E)
+    [26.70, 56.70],  // heading SE past the islands
+    [26.55, 56.80],  // curving south, well east of Musandam
+    [26.35, 56.90],  //
+    [26.10, 57.00],  // heading SE into Gulf of Oman
+    [25.80, 57.15],  //
+    [25.50, 57.35],  //
+    [25.15, 57.60],  //
+    [24.80, 57.95],  // Gulf of Oman
   ];
 
   // Draw Gulf corridor as wide transparent band
