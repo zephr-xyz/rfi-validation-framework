@@ -120,142 +120,99 @@ def haversine_km(lat1, lon1, lat2, lon2):
     return R * 2 * np.arcsin(np.sqrt(a))
 
 
-def scan_tile(tile_lat, tile_lon, date_str, search_radius_km=SEARCH_RADIUS_KM):
-    """Stream CYGNSS data for a single tile/date, return noise floor measurements."""
+def scan_date(date_str):
+    """Stream all CYGNSS granules for a single date, return Gulf region measurements."""
     import earthaccess
     import h5netcdf
 
-    cos_lat = np.cos(np.radians(tile_lat))
     measurements = []
 
     try:
         results = earthaccess.search_data(
             short_name="CYGNSS_L1_V3.2",
             temporal=(date_str, date_str),
-            bounding_box=(
-                tile_lon - search_radius_km / 111.0,
-                tile_lat - search_radius_km / 111.0,
-                tile_lon + search_radius_km / 111.0,
-                tile_lat + search_radius_km / 111.0,
-            ),
+            bounding_box=(REGION_LON_MIN, REGION_LAT_MIN,
+                          REGION_LON_MAX, REGION_LAT_MAX),
         )
     except Exception as e:
-        log.warning("Search failed for tile (%.1f, %.1f) %s: %s",
-                    tile_lat, tile_lon, date_str, e)
+        log.warning("Search failed for %s: %s", date_str, e)
         return measurements
 
     if not results:
+        log.info("  No granules for %s", date_str)
         return measurements
 
-    for granule in results:
+    log.info("  %s: %d granules", date_str, len(results))
+
+    for gi, granule in enumerate(results):
         try:
             files = earthaccess.open([granule])
             if not files:
                 continue
             with h5netcdf.File(files[0], "r") as ds:
-                sp_lat = ds["sp_lat"][:]
-                sp_lon = ds["sp_lon"][:]
-                noise_floor = ds["ddm_noise_floor"][:]
-                n_samples, n_ddm = sp_lat.shape
+                sp_lat = ds["sp_lat"][:].ravel()
+                sp_lon = ds["sp_lon"][:].ravel()
+                noise_floor = ds["ddm_noise_floor"][:].ravel()
 
-                for si in range(n_samples):
-                    for di in range(n_ddm):
-                        lat = float(sp_lat[si, di])
-                        lon = float(sp_lon[si, di])
+                # Vectorized filtering — keep only valid Gulf-region points
+                valid = (
+                    ((sp_lat != 0) | (sp_lon != 0)) &
+                    np.isfinite(sp_lat) & np.isfinite(sp_lon) &
+                    np.isfinite(noise_floor) & (noise_floor > 0) &
+                    (sp_lat >= REGION_LAT_MIN) & (sp_lat <= REGION_LAT_MAX) &
+                    (sp_lon >= REGION_LON_MIN) & (sp_lon <= REGION_LON_MAX)
+                )
 
-                        if lat == 0 and lon == 0:
-                            continue
-                        if not np.isfinite(lat) or not np.isfinite(lon):
-                            continue
-                        if not (REGION_LAT_MIN <= lat <= REGION_LAT_MAX and
-                                REGION_LON_MIN <= lon <= REGION_LON_MAX):
-                            continue
-
-                        dlat = (lat - tile_lat) * 111.0
-                        dlon = (lon - tile_lon) * 111.0 * cos_lat
-                        dist_km = np.sqrt(dlat ** 2 + dlon ** 2)
-                        if dist_km > search_radius_km:
-                            continue
-
-                        nf = float(noise_floor[si, di])
-                        if not np.isfinite(nf) or nf <= 0:
-                            continue
-
+                n_valid = int(valid.sum())
+                if n_valid > 0:
+                    lats = sp_lat[valid]
+                    lons = sp_lon[valid]
+                    nfs = noise_floor[valid]
+                    for lat, lon, nf in zip(lats, lons, nfs):
                         measurements.append({
-                            "lat": lat, "lon": lon,
-                            "noise_floor": nf,
+                            "lat": float(lat), "lon": float(lon),
+                            "noise_floor": float(nf),
                             "date": date_str,
                         })
+                log.info("    [%d/%d] %d points in Gulf region",
+                         gi + 1, len(results), n_valid)
         except Exception as e:
-            log.debug("Error reading granule: %s", e)
+            log.warning("    [%d/%d] Error: %s", gi + 1, len(results), e)
             continue
 
+    log.info("  %s total: %d measurements", date_str, len(measurements))
     return measurements
 
 
 def collect_multipass(conflict_dates, baseline_date):
     """Collect CYGNSS measurements across multiple conflict dates + one baseline.
 
+    Scans each date once (no tiling needed — CYGNSS granules are global daily).
     Returns (conflict_measurements, baseline_measurements).
     """
     import earthaccess
-    earthaccess.login(strategy="netrc")
+    earthaccess.login(strategy="environment")
 
-    # Tile the region with overlapping tiles
-    tile_spacing = 2.0  # tighter spacing for focused area
-    lat_centers = np.arange(REGION_LAT_MIN + 1.0, REGION_LAT_MAX, tile_spacing)
-    lon_centers = np.arange(REGION_LON_MIN + 1.0, REGION_LON_MAX, tile_spacing)
-    n_tiles = len(lat_centers) * len(lon_centers)
-
+    all_dates = [baseline_date] + conflict_dates
     log.info("Region: %.1f-%.1f°N, %.1f-%.1f°E",
              REGION_LAT_MIN, REGION_LAT_MAX, REGION_LON_MIN, REGION_LON_MAX)
-    log.info("Tiles: %d (%.0f° spacing)", n_tiles, tile_spacing)
-    log.info("Conflict dates: %s", ", ".join(conflict_dates))
-    log.info("Baseline date: %s", baseline_date)
+    log.info("Dates to scan: %d (%s baseline + %d conflict)",
+             len(all_dates), baseline_date, len(conflict_dates))
 
     all_conflict = []
     all_baseline = []
-    seen_keys = set()
 
-    all_dates = conflict_dates + [baseline_date]
-    total_ops = n_tiles * len(all_dates)
-    op_idx = 0
+    # Baseline
+    log.info("Scanning baseline %s...", baseline_date)
+    baseline_meas = scan_date(baseline_date)
+    all_baseline = baseline_meas
 
-    for lat_c in lat_centers:
-        for lon_c in lon_centers:
-            # Baseline pass
-            op_idx += 1
-            log.info("  [%d/%d] Tile (%.1f, %.1f) baseline %s",
-                     op_idx, total_ops, lat_c, lon_c, baseline_date)
-            try:
-                meas = scan_tile(lat_c, lon_c, baseline_date)
-                for m in meas:
-                    key = (round(m["lat"], 3), round(m["lon"], 3),
-                           round(m["noise_floor"], 0), "baseline")
-                    if key not in seen_keys:
-                        seen_keys.add(key)
-                        all_baseline.append(m)
-            except Exception as e:
-                log.warning("    Failed: %s", e)
-
-            # Conflict passes
-            for date_str in conflict_dates:
-                op_idx += 1
-                log.info("  [%d/%d] Tile (%.1f, %.1f) conflict %s",
-                         op_idx, total_ops, lat_c, lon_c, date_str)
-                try:
-                    meas = scan_tile(lat_c, lon_c, date_str)
-                    for m in meas:
-                        key = (round(m["lat"], 3), round(m["lon"], 3),
-                               round(m["noise_floor"], 0), date_str)
-                        if key not in seen_keys:
-                            seen_keys.add(key)
-                            all_conflict.append(m)
-                except Exception as e:
-                    log.warning("    Failed: %s", e)
-
-            log.info("    Running totals: %d conflict, %d baseline",
-                     len(all_conflict), len(all_baseline))
+    # Conflict dates
+    for i, date_str in enumerate(conflict_dates, 1):
+        log.info("Scanning conflict date %d/%d: %s...",
+                 i, len(conflict_dates), date_str)
+        meas = scan_date(date_str)
+        all_conflict.extend(meas)
 
     return all_conflict, all_baseline
 
