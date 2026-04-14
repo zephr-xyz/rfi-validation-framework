@@ -321,7 +321,7 @@
         "2026-04-09",
         "2026-04-10"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 27.9858,
       "centroid_lon": 51.3043,
@@ -374,7 +374,7 @@
         "2026-04-09",
         "2026-04-10"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 29.3009,
       "centroid_lon": 49.7168,
@@ -414,7 +414,7 @@
         "2026-04-07",
         "2026-04-10"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 26.955,
       "centroid_lon": 53.965,
@@ -502,7 +502,7 @@
         "2026-04-10",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 27.1133,
       "centroid_lon": 53.5905,
@@ -555,7 +555,7 @@
         "2026-04-09",
         "2026-04-10"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 28.7841,
       "centroid_lon": 50.7303,
@@ -602,7 +602,7 @@
         "2026-04-09",
         "2026-04-10"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 28.698,
       "centroid_lon": 50.5064,
@@ -648,7 +648,7 @@
         "2026-04-07",
         "2026-04-09"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 26.5029,
       "centroid_lon": 54.486,
@@ -701,7 +701,7 @@
         "2026-04-09",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 28.0839,
       "centroid_lon": 52.4631,
@@ -747,7 +747,7 @@
         "2026-04-08",
         "2026-04-10"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 28.5578,
       "centroid_lon": 50.1498,
@@ -833,7 +833,7 @@
         "2026-04-10",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 27.7531,
       "centroid_lon": 51.3229,
@@ -879,7 +879,7 @@
         "2026-04-10",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 28.1371,
       "centroid_lon": 51.0205,
@@ -928,7 +928,7 @@
         "2026-04-10",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 28.4335,
       "centroid_lon": 52.2647,
@@ -1014,7 +1014,7 @@
         "2026-04-10",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 24.829,
       "centroid_lon": 52.8549,
@@ -1043,7 +1043,7 @@
         "2026-04-09",
         "2026-04-10"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 24.568,
       "centroid_lon": 52.2896,
@@ -1072,7 +1072,7 @@
         "2026-04-10",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 27.5966,
       "centroid_lon": 53.658,
@@ -1101,7 +1101,7 @@
         "2026-04-10",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 24.6771,
       "centroid_lon": 52.9933,
@@ -1129,7 +1129,7 @@
         "2026-04-09",
         "2026-04-10"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 24.7049,
       "centroid_lon": 53.5175,
@@ -1158,7 +1158,7 @@
         "2026-04-09",
         "2026-04-10"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 25.6838,
       "centroid_lon": 50.8805,
@@ -1186,7 +1186,7 @@
         "2026-04-09",
         "2026-04-10"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 24.5646,
       "centroid_lon": 53.1768,
@@ -1215,7 +1215,7 @@
         "2026-04-09",
         "2026-04-10"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 24.7605,
       "centroid_lon": 49.7314,
@@ -1243,7 +1243,7 @@
         "2026-04-10",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 24.8433,
       "centroid_lon": 53.3098,
@@ -1272,7 +1272,7 @@
         "2026-04-09",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 24.6398,
       "centroid_lon": 50.4134,
@@ -1299,7 +1299,7 @@
         "2026-04-07",
         "2026-04-10"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 25.4345,
       "centroid_lon": 49.3674,
@@ -1326,7 +1326,7 @@
         "2026-04-08",
         "2026-04-10"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 27.8687,
       "centroid_lon": 58.4236,
@@ -1384,7 +1384,7 @@
         "2026-04-08",
         "2026-04-09"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 24.854,
       "centroid_lon": 49.5572,
@@ -1440,7 +1440,7 @@
         "2026-04-10",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 28.3555,
       "centroid_lon": 51.8469,
@@ -1496,7 +1496,7 @@
         "2026-04-10",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 28.6518,
       "centroid_lon": 52.5404,
@@ -1553,7 +1553,7 @@
         "2026-04-10",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 26.3416,
       "centroid_lon": 50.6585,
@@ -1581,7 +1581,7 @@
         "2026-04-10",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 28.1417,
       "centroid_lon": 57.1035,
@@ -1609,7 +1609,7 @@
         "2026-04-09",
         "2026-04-10"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 24.5521,
       "centroid_lon": 51.976,
@@ -1694,7 +1694,7 @@
         "2026-04-07",
         "2026-04-10"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 26.5574,
       "centroid_lon": 51.1135,
@@ -1722,7 +1722,7 @@
         "2026-04-09",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 24.794,
       "centroid_lon": 52.317,
@@ -1751,7 +1751,7 @@
         "2026-04-10",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 25.4643,
       "centroid_lon": 52.0644,
@@ -1808,7 +1808,7 @@
         "2026-04-09",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 24.5692,
       "centroid_lon": 52.7964,
@@ -1836,7 +1836,7 @@
         "2026-04-08",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 26.8063,
       "centroid_lon": 51.4482,
@@ -1865,7 +1865,7 @@
         "2026-04-10",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 24.6004,
       "centroid_lon": 51.8757,
@@ -1893,7 +1893,7 @@
         "2026-04-10",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 26.9037,
       "centroid_lon": 51.248,
@@ -1975,7 +1975,7 @@
         "2026-04-08",
         "2026-04-10"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 25.6476,
       "centroid_lon": 52.1888,
@@ -2058,7 +2058,7 @@
         "2026-04-07",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 25.7536,
       "centroid_lon": 49.0666,
@@ -2111,7 +2111,7 @@
       "dates": [
         "2026-04-07"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 25.1048,
       "centroid_lon": 49.7672,
@@ -2165,7 +2165,7 @@
         "2026-04-07",
         "2026-04-08"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 26.6455,
       "centroid_lon": 51.8126,
@@ -2192,7 +2192,7 @@
         "2026-04-07",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 25.4776,
       "centroid_lon": 48.7577,
@@ -2301,7 +2301,7 @@
         "2026-04-07",
         "2026-04-10"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 27.2782,
       "centroid_lon": 48.6,
@@ -2329,7 +2329,7 @@
         "2026-04-10",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 24.5397,
       "centroid_lon": 54.9546,
@@ -2413,7 +2413,7 @@
         "2026-04-10",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 24.8882,
       "centroid_lon": 50.0631,
@@ -2440,7 +2440,7 @@
         "2026-04-08",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 28.8639,
       "centroid_lon": 54.1653,
@@ -2495,7 +2495,7 @@
         "2026-04-09",
         "2026-04-10"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 25.0028,
       "centroid_lon": 50.3424,
@@ -2550,7 +2550,7 @@
         "2026-04-08",
         "2026-04-10"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 24.9014,
       "centroid_lon": 57.7746,
@@ -2578,7 +2578,7 @@
         "2026-04-09",
         "2026-04-10"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 27.7129,
       "centroid_lon": 48.5623,
@@ -2632,7 +2632,7 @@
         "2026-04-09",
         "2026-04-10"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 24.5275,
       "centroid_lon": 51.1826,
@@ -2660,7 +2660,7 @@
         "2026-04-09",
         "2026-04-10"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 25.5499,
       "centroid_lon": 52.3959,
@@ -2770,7 +2770,7 @@
         "2026-04-09",
         "2026-04-10"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 27.7867,
       "centroid_lon": 49.2124,
@@ -2797,7 +2797,7 @@
         "2026-04-10",
         "2026-04-11"
       ],
-      "bootstrap_cep_km": null,
+      "bootstrap_cep_km": 0.0,
       "bootstrap_n_fits": 300,
       "centroid_lat": 26.4567,
       "centroid_lon": 50.1017,

@@ -396,7 +396,7 @@ def fit_jammer_location(cluster, baseline_mean):
         "n_elevated_points": int(elevated_mask.sum()),
         "n_dates": cluster.get("n_dates", 1),
         "dates": cluster.get("dates", []),
-        "bootstrap_cep_km": round(cep_km, 2) if cep_km else None,
+        "bootstrap_cep_km": round(cep_km, 2) if cep_km is not None else None,
         "bootstrap_n_fits": len(boot_lats),
         "centroid_lat": round(init_lat, 4),
         "centroid_lon": round(init_lon, 4),
